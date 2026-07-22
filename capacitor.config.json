@@ -1,0 +1,6 @@
+{
+  "appId": "com.limitados.fc",
+  "appName": "Limitados F.C",
+  "webDir": "dist",
+  "android": { "allowMixedContent": true }
+}

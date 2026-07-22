@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Limitados F.C</string>
+    <string name="title_activity_main">Limitados F.C</string>
+    <string name="package_name">com.limitados.fc</string>
+    <string name="custom_url_scheme">com.limitados.fc</string>
+</resources>

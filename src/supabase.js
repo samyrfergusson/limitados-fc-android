@@ -1,0 +1,47 @@
+import { createClient } from "@supabase/supabase-js";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config";
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Todo o app vive num único registro (id = 1) da tabela "grupo",
+// na coluna JSON "dados". Isso mantém a migração praticamente sem refatoração.
+const ROW_ID = 1;
+
+// Lê o documento do grupo. Retorna o objeto de dados ou null.
+export async function fetchData() {
+  const { data, error } = await supabase
+    .from("grupo").select("dados").eq("id", ROW_ID).maybeSingle();
+  if (error) { console.error("Supabase fetch:", error.message); return null; }
+  return data ? data.dados : null;
+}
+
+// Grava o documento inteiro. Só funciona para admins (bloqueado pelo RLS).
+export async function pushData(dados) {
+  const { error } = await supabase
+    .from("grupo")
+    .update({ dados, updated_at: new Date().toISOString() })
+    .eq("id", ROW_ID);
+  if (error) { console.error("Supabase save (sem permissão?):", error.message); return false; }
+  return true;
+}
+
+// Escuta mudanças em tempo real e chama onChange(novosDados) quando alguém salva.
+export function subscribeData(onChange) {
+  const ch = supabase
+    .channel("grupo-realtime")
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "grupo", filter: `id=eq.${ROW_ID}` },
+      (payload) => { if (payload.new && payload.new.dados) onChange(payload.new.dados); }
+    )
+    .subscribe();
+  return () => supabase.removeChannel(ch);
+}
+
+// Confere se o e-mail logado está na tabela de admins (diretoria).
+export async function isAdminEmail(email) {
+  if (!email) return false;
+  const { data } = await supabase
+    .from("admins").select("email").eq("email", email.toLowerCase()).maybeSingle();
+  return !!data;
+}
