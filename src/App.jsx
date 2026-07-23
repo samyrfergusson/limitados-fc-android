@@ -910,6 +910,7 @@ function Financeiro({ data, update }) {
   });
   const statusColor = { pago: T.turf, pendente: T.amber, atrasado: T.red };
   const addLanc = (l) => update((d) => ({ ...d, lancamentos: [{ ...l, id: uid() }, ...d.lancamentos], club: { ...d.club, caixa: d.club.caixa + (l.tipo === "receita" ? l.valor : -l.valor) } }));
+  const delLanc = (l) => { if (!confirm(`Remover "${l.desc}" (${brl(l.valor)})?`)) return; update((d) => ({ ...d, lancamentos: d.lancamentos.filter((x) => x.id !== l.id), club: { ...d.club, caixa: d.club.caixa - (l.tipo === "receita" ? l.valor : -l.valor) } })); };
   const emDia = mensalistas.filter((p) => (data.payments[p.id] || {})[cur] === "pago").length;
   const unpaid = (pid) => data.multas.filter((m) => m.playerId === pid && !m.pago);
   const totalMultas = data.multas.filter((m) => !m.pago).reduce((s, m) => s + m.valor, 0);
@@ -993,6 +994,14 @@ function Financeiro({ data, update }) {
       <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))" }}>
         <Card style={{ padding: 16 }}>
           <SectionTitle Icon={ClipboardList} color={T.blue}>Movimentações do caixa</SectionTitle>
+          <div className="grid gap-2" style={{ gridTemplateColumns: "1fr 1fr", marginBottom: 12 }}>
+            <Field label="Saldo do caixa (R$)">
+              <input type="number" style={inputStyle} value={data.club.caixa} onChange={(e) => update((d) => ({ ...d, club: { ...d.club, caixa: +e.target.value } }))} />
+            </Field>
+            <Field label="Mensalidade (R$)">
+              <input type="number" style={inputStyle} value={data.club.mensalidade} onChange={(e) => update((d) => ({ ...d, club: { ...d.club, mensalidade: +e.target.value } }))} />
+            </Field>
+          </div>
           <LancForm onAdd={addLanc} />
           <div style={{ marginTop: 12 }}>
             {data.lancamentos.slice(0, 8).map((l) => (
@@ -1001,7 +1010,10 @@ function Financeiro({ data, update }) {
                   <div style={{ fontSize: 13 }}>{l.desc}</div>
                   <div style={{ ...mono, fontSize: 10, color: T.muted }}>{new Date(l.data).toLocaleDateString("pt-BR")}</div>
                 </div>
-                <span style={{ ...mono, fontWeight: 700, color: l.tipo === "receita" ? T.turf : T.red }}>{l.tipo === "receita" ? "+" : "−"}{brl(l.valor)}</span>
+                <div className="flex items-center gap-2">
+                  <span style={{ ...mono, fontWeight: 700, color: l.tipo === "receita" ? T.turf : T.red }}>{l.tipo === "receita" ? "+" : "−"}{brl(l.valor)}</span>
+                  <IconBtn onClick={() => delLanc(l)}><Trash2 size={13} color={T.red} /></IconBtn>
+                </div>
               </div>
             ))}
           </div>
