@@ -6,6 +6,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Necessário para publicar o APK em Releases (download público)
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -45,3 +49,11 @@ jobs:
           name: limitados-fc-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Publicar o APK em Release (download público)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: APK mais recente
+          body: APK debug mais recente do Limitados F.C (gerado automaticamente a cada atualização).
+          files: android/app/build/outputs/apk/debug/app-debug.apk
