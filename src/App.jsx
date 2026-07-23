@@ -692,7 +692,14 @@ function PlayerForm({ player, onClose, onSave, embed, heading, submitLabel }) {
     aniversario: "", atr: { vel: 70, fin: 70, pas: 70, def: 70, fis: 70 },
   });
   const set = (k, v) => setF((x) => ({ ...x, [k]: v }));
-  const setAtr = (k, v) => setF((x) => ({ ...x, atr: { ...x.atr, [k]: +v } }));
+  // Guarda o texto cru enquanto edita (deixa apagar tudo/ficar vazio);
+  // a conversão para número acontece só ao salvar (submit).
+  const setAtr = (k, v) => setF((x) => ({ ...x, atr: { ...x.atr, [k]: v } }));
+  const submit = () => onSave({
+    ...f,
+    overall: Number(f.overall) || 0,
+    atr: Object.fromEntries(Object.entries(f.atr).map(([k, v]) => [k, Number(v) || 0])),
+  });
   const body = (
     <>
       {heading}
@@ -728,7 +735,7 @@ function PlayerForm({ player, onClose, onSave, embed, heading, submitLabel }) {
         ))}
       </div>
       <div className="flex gap-2" style={{ marginTop: 18 }}>
-        <PrimaryBtn onClick={() => onSave(f)} full>{submitLabel || "Salvar"}</PrimaryBtn>
+        <PrimaryBtn onClick={submit} full>{submitLabel || "Salvar"}</PrimaryBtn>
         {!embed && <GhostBtn onClick={onClose}>Cancelar</GhostBtn>}
       </div>
     </>
