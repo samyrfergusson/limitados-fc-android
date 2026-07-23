@@ -38,6 +38,15 @@ export function subscribeData(onChange) {
   return () => supabase.removeChannel(ch);
 }
 
+// Auto-cadastro do jogador na 1ª vez. Chama a função do banco (RPC), que
+// roda com privilégio elevado mas VALIDA no servidor: força o e-mail do
+// próprio login e recusa se já houver cadastro. Depois disso, só admin edita.
+export async function selfRegister(player) {
+  const { error } = await supabase.rpc("self_register_player", { payload: player });
+  if (error) { console.error("Auto-cadastro:", error.message); return { ok: false, error: error.message }; }
+  return { ok: true };
+}
+
 // Confere se o e-mail logado está na tabela de admins (diretoria).
 export async function isAdminEmail(email) {
   if (!email) return false;

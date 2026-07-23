@@ -6,7 +6,7 @@ import {
   CalendarCheck, AlertTriangle, ThumbsUp, ThumbsDown, HelpCircle,
   LogOut, Mail, ShieldCheck, Eye,
 } from "lucide-react";
-import { supabase, fetchData, pushData, subscribeData, isAdminEmail } from "./supabase";
+import { supabase, fetchData, pushData, subscribeData, isAdminEmail, selfRegister } from "./supabase";
 
 /* ============================ TEMA ============================ */
 const T = {
@@ -274,6 +274,14 @@ export default function App() {
   if (session === null) return <Login />;
   if (!data) return <Splash>{isAdmin ? "Preparando o vestiário…" : "Aguardando a diretoria configurar o grupo…"}</Splash>;
 
+  // 1º acesso do jogador (não-admin e ainda sem ficha): libera o auto-cadastro.
+  // Depois de criado, ele não vê mais esta tela e não pode editar — só o admin.
+  const myEmail = (session.user?.email || "").toLowerCase();
+  const myPlayer = data.players?.find((p) => (p.email || "").toLowerCase() === myEmail);
+  if (!isAdmin && !myPlayer) {
+    return <SelfRegister email={myEmail} onDone={async () => setData(await fetchData())} />;
+  }
+
   const stats = computeStats(data);
   const tabs = [
     { k: "destaques", label: "Destaques", Icon: Trophy },
@@ -411,6 +419,48 @@ function Login() {
             <div style={{ ...mono, fontSize: 10, color: T.muted, marginTop: 14 }}>Sem senha: você recebe um link por e-mail.</div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================ AUTO-CADASTRO (1º ACESSO) ============================ */
+function SelfRegister({ email, onDone }) {
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const salvar = async (pl) => {
+    if (busy) return;
+    setBusy(true); setErr("");
+    const res = await selfRegister({ ...pl, email });
+    setBusy(false);
+    if (res.ok) onDone();
+    else setErr(res.error || "Não foi possível concluir o cadastro. Tente novamente.");
+  };
+  const heading = (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontSize: 13, color: T.muted }}>
+        Preencha sua ficha para entrar no elenco. Você faz isto <b style={{ color: T.bone }}>uma única vez</b> —
+        depois disso, qualquer alteração é feita pela diretoria.
+      </div>
+      {err && <div style={{ color: T.red, fontSize: 12, marginTop: 8 }}>{err}</div>}
+    </div>
+  );
+  return (
+    <div style={{ background: T.bg, minHeight: 560, fontFamily: "'Inter', sans-serif", padding: 16, overflowY: "auto" }}>
+      <style>{FONTS}</style>
+      <div style={{ maxWidth: 620, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", padding: "16px 0 18px" }}>
+          <div style={{ ...display, fontSize: 34, color: T.bone, lineHeight: 1 }}>Bem-vindo ao Limitados F.C</div>
+          <div style={{ ...mono, fontSize: 11, color: T.muted, marginTop: 4 }}>{email}</div>
+        </div>
+        <div style={{ background: T.panel, border: `1px solid ${T.line}`, borderRadius: 16, padding: 18 }}>
+          <PlayerForm embed heading={heading} submitLabel={busy ? "Enviando…" : "Entrar no elenco"} onSave={salvar} />
+        </div>
+        <div style={{ textAlign: "center", marginTop: 14 }}>
+          <button onClick={() => supabase.auth.signOut()} style={{ ...mono, fontSize: 11, color: T.muted, border: `1px solid ${T.line}`, borderRadius: 8, padding: "6px 12px" }}>
+            <LogOut size={11} style={{ display: "inline", marginRight: 4 }} /> Sair
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -627,7 +677,7 @@ function PlayerCard({ p, onEdit, onToggle, onDel, faded }) {
     </Card>
   );
 }
-function PlayerForm({ player, onClose, onSave }) {
+function PlayerForm({ player, onClose, onSave, embed, heading, submitLabel }) {
   const [f, setF] = useState(player || {
     id: uid(), nome: "", apelido: "", numero: "", posicao: "MEI", overall: 75, cargo: "mensalista",
     mensalista: true, status: "ativo", dataEntrada: new Date().toISOString().slice(0, 10), dataSaida: null,
@@ -635,8 +685,9 @@ function PlayerForm({ player, onClose, onSave }) {
   });
   const set = (k, v) => setF((x) => ({ ...x, [k]: v }));
   const setAtr = (k, v) => setF((x) => ({ ...x, atr: { ...x.atr, [k]: +v } }));
-  return (
-    <Modal title={player ? "Editar jogador" : "Novo jogador"} onClose={onClose} wide>
+  const body = (
+    <>
+      {heading}
       <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <Field label="Nome completo"><input style={inputStyle} value={f.nome} onChange={(e) => set("nome", e.target.value)} /></Field>
         <Field label="Apelido"><input style={inputStyle} value={f.apelido} onChange={(e) => set("apelido", e.target.value)} /></Field>
@@ -669,11 +720,13 @@ function PlayerForm({ player, onClose, onSave }) {
         ))}
       </div>
       <div className="flex gap-2" style={{ marginTop: 18 }}>
-        <PrimaryBtn onClick={() => onSave(f)} full>Salvar</PrimaryBtn>
-        <GhostBtn onClick={onClose}>Cancelar</GhostBtn>
+        <PrimaryBtn onClick={() => onSave(f)} full>{submitLabel || "Salvar"}</PrimaryBtn>
+        {!embed && <GhostBtn onClick={onClose}>Cancelar</GhostBtn>}
       </div>
-    </Modal>
+    </>
   );
+  if (embed) return body;
+  return <Modal title={player ? "Editar jogador" : "Novo jogador"} onClose={onClose} wide>{body}</Modal>;
 }
 
 /* ============================ PRESENÇA / PRÓXIMO JOGO ============================ */
