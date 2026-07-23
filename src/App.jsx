@@ -385,7 +385,7 @@ function Login() {
   const enviar = async () => {
     if (!email) return;
     setBusy(true); setErr("");
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim().toLowerCase(), options: { emailRedirectTo: window.location.origin } });
+    const { error } = await supabase.auth.signInWithOtp({ email: email.trim().toLowerCase(), options: { emailRedirectTo: window.location.origin + import.meta.env.BASE_URL } });
     setBusy(false);
     if (error) setErr(error.message); else setSent(true);
   };

@@ -2,7 +2,15 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// No GitHub Pages o site fica em /limitados-fc-android/ (subcaminho).
+// No APK (Capacitor) e no dev local, a base é a raiz "/".
+// A variavel PAGES=1 e definida SO no workflow de deploy web — assim o
+// build do APK continua com base "/" e nao quebra.
+const base = process.env.PAGES ? '/limitados-fc-android/' : '/'
+
 export default defineConfig({
+  base,
+  server: { host: '127.0.0.1', port: 5173 },
   plugins: [
     react(),
     VitePWA({
@@ -17,7 +25,9 @@ export default defineConfig({
         background_color: '#080B1C',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
+        id: base,
+        scope: base,
+        start_url: base,
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
