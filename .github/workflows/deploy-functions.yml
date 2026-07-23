@@ -1,0 +1,23 @@
+name: Deploy Supabase Functions
+
+# Publica as Edge Functions no Supabase.
+# Rodar manualmente (Actions -> Deploy Supabase Functions -> Run workflow)
+# DEPOIS de cadastrar o secret SUPABASE_ACCESS_TOKEN no repositorio.
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: ebbffyqwqzhbrgmqgtqv
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Deploy criar-cobranca
+        run: supabase functions deploy criar-cobranca --project-ref $PROJECT_REF
+      - name: Deploy mp-webhook (sem verificacao de JWT)
+        run: supabase functions deploy mp-webhook --no-verify-jwt --project-ref $PROJECT_REF

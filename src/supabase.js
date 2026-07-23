@@ -47,6 +47,16 @@ export async function selfRegister(player) {
   return { ok: true };
 }
 
+// Gera uma cobrança PIX (Mercado Pago) via Edge Function. Jogador comum gera a
+// própria; admin pode passar { playerId } para gerar de qualquer um.
+// Retorna { ok, qr_code, qr_code_base64, valor, payment_id } ou { ok:false, error }.
+export async function criarCobrancaPix(opts = {}) {
+  const { data, error } = await supabase.functions.invoke("criar-cobranca", { body: opts });
+  if (error) return { ok: false, error: error.message };
+  if (data?.error) return { ok: false, error: data.error };
+  return { ok: true, ...data };
+}
+
 // Confere se o e-mail logado está na tabela de admins (diretoria).
 export async function isAdminEmail(email) {
   if (!email) return false;

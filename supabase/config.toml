@@ -1,0 +1,7 @@
+project_id = "ebbffyqwqzhbrgmqgtqv"
+
+[functions.criar-cobranca]
+verify_jwt = true
+
+[functions.mp-webhook]
+verify_jwt = false
