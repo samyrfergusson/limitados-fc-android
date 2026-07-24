@@ -2,5 +2,9 @@
   "appId": "com.limitados.fc",
   "appName": "Limitados F.C",
   "webDir": "dist",
+  "server": {
+    "url": "https://samyrfergusson.github.io/limitados-fc-android/",
+    "androidScheme": "https"
+  },
   "android": { "allowMixedContent": true }
 }
