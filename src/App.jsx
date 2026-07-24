@@ -401,7 +401,7 @@ export default function App() {
         {tab === "presenca" && <Presenca data={data} update={update} />}
         {tab === "financeiro" && <Financeiro data={data} update={update} />}
         {tab === "partidas" && <Partidas data={data} update={update} stats={stats} />}
-        {tab === "sortear" && isAdmin && <Sortear data={data} />}
+        {tab === "sortear" && isAdmin && <Sortear data={data} update={update} />}
       </div>
 
       <div style={{ textAlign: "center", padding: "10px 0 24px", ...mono, fontSize: 10, color: T.line }}>
@@ -1176,6 +1176,16 @@ function Partidas({ data, update, stats }) {
                   {golScorers.map(([id, n]) => `${byId(id)?.apelido} (${n})`).join(" · ")}
                 </div>
               )}
+              {(m.equilibrio || m.obs) && (
+                <div style={{ marginTop: 10, textAlign: "center" }}>
+                  {m.equilibrio && (() => {
+                    const c = m.equilibrio === "sim" ? T.turf : m.equilibrio === "nao" ? T.red : T.amber;
+                    const txt = m.equilibrio === "sim" ? "✓ Times equilibrados" : m.equilibrio === "nao" ? "✗ Desequilibrados" : "~ Equilíbrio médio";
+                    return <span style={{ ...mono, fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 7, color: c, border: `1px solid ${c}55` }}>{txt}</span>;
+                  })()}
+                  {m.obs && <div style={{ fontSize: 11, color: T.muted, marginTop: 6, fontStyle: "italic" }}>“{m.obs}”</div>}
+                </div>
+              )}
             </Card>
           );
         })}
@@ -1190,6 +1200,7 @@ function MatchForm({ data, onClose, onSave }) {
   const [team, setTeam] = useState({}); // id -> 'A'|'B'|undefined
   const [placarA, setA] = useState(0); const [placarB, setB] = useState(0);
   const [gols, setGols] = useState({}); const [assist, setAssist] = useState({}); const [craque, setCraque] = useState("");
+  const [equilibrio, setEquilibrio] = useState(""); const [obs, setObs] = useState("");
 
   const present = active.filter((p) => team[p.id]);
   const setT = (id, t) => setTeam((x) => ({ ...x, [id]: x[id] === t ? undefined : t }));
@@ -1203,7 +1214,7 @@ function MatchForm({ data, onClose, onSave }) {
   const save = () => {
     const timeA = present.filter((p) => team[p.id] === "A").map((p) => p.id);
     const timeB = present.filter((p) => team[p.id] === "B").map((p) => p.id);
-    onSave({ id: uid(), data: dataJogo, timeA, timeB, placarA: +placarA, placarB: +placarB, gols, assist, craque });
+    onSave({ id: uid(), data: dataJogo, timeA, timeB, placarA: +placarA, placarB: +placarB, gols, assist, craque, equilibrio, obs });
   };
 
   return (
@@ -1251,6 +1262,20 @@ function MatchForm({ data, onClose, onSave }) {
           </Field>
         </>
       )}
+      <div style={{ ...mono, fontSize: 11, color: T.muted, margin: "4px 0 6px" }}>Avaliação do sorteio:</div>
+      <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr", marginBottom: 14 }}>
+        <Field label="Os times ficaram parelhos?">
+          <select style={inputStyle} value={equilibrio} onChange={(e) => setEquilibrio(e.target.value)}>
+            <option value="">— avaliar —</option>
+            <option value="sim">✓ Equilibrados</option>
+            <option value="mais_ou_menos">~ Mais ou menos</option>
+            <option value="nao">✗ Desequilibrados</option>
+          </select>
+        </Field>
+        <Field label="Observação sobre a escolha dos times">
+          <input style={inputStyle} placeholder="ex: time A dominou o meio-campo" value={obs} onChange={(e) => setObs(e.target.value)} />
+        </Field>
+      </div>
       <PrimaryBtn onClick={save} full>Salvar partida</PrimaryBtn>
     </Modal>
   );
@@ -1258,22 +1283,27 @@ function MatchForm({ data, onClose, onSave }) {
 const teamBtn = (on, c) => ({ ...mono, fontWeight: 700, width: 30, height: 28, borderRadius: 7, fontSize: 12, color: on ? T.bg : c, background: on ? c : "transparent", border: `1px solid ${c}` });
 
 /* ============================ SORTEAR ============================ */
-function Sortear({ data }) {
+function Sortear({ data, update }) {
   const admin = useIsAdmin();
   const active = data.players.filter((p) => p.status === "ativo");
   const [sel, setSel] = useState(() => new Set(active.slice(0, 10).map((p) => p.id)));
   const [teams, setTeams] = useState(null);
-  const [used, setUsed] = useState(() => new Set()); // combinações já sorteadas
-  const [ciclo, setCiclo] = useState(false);          // avisa quando reiniciou o ciclo
+  const [ciclo, setCiclo] = useState(false); // avisa quando reiniciou o ciclo
   const selKey = [...sel].sort().join(",");
-  // Muda a lista de presentes → zera o histórico (é outro conjunto de possibilidades)
-  useEffect(() => { setUsed(new Set()); setTeams(null); setCiclo(false); }, [selKey]);
+  // Histórico persiste no Supabase (data.sorteioHist), por conjunto de presentes.
+  const used = new Set(data.sorteioHist?.[selKey] || []);
+  // Trocar quem está presente só limpa a exibição (cada conjunto tem seu histórico próprio).
+  useEffect(() => { setTeams(null); setCiclo(false); }, [selKey]);
   const toggle = (id) => setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const run = () => {
     const players = active.filter((p) => sel.has(p.id));
     if (players.length < 2) return;
     const { teams: t, key, exhausted } = balanceTeamsVaried(players, used);
-    setUsed((prev) => { const next = exhausted ? new Set() : new Set(prev); next.add(key); return next; });
+    update((d) => {
+      const hist = { ...(d.sorteioHist || {}) };
+      hist[selKey] = exhausted ? [key] : [...(hist[selKey] || []), key];
+      return { ...d, sorteioHist: hist };
+    });
     setCiclo(exhausted);
     setTeams(t);
   };
