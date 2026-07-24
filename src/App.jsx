@@ -716,7 +716,9 @@ function PlayerForm({ player, onClose, onSave, embed, heading, submitLabel }) {
         <Field label="Aniversário (MM-DD)"><input placeholder="07-16" style={inputStyle} value={f.aniversario} onChange={(e) => set("aniversario", e.target.value)} /></Field>
         <Field label="Cargo">
           <select style={inputStyle} value={f.cargo} onChange={(e) => set("cargo", e.target.value)}>
-            {Object.entries(CARGO).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            {Object.entries(CARGO)
+              .filter(([k]) => !embed || k === "mensalista" || k === "diarista")
+              .map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
         </Field>
         <Field label="Tipo">
