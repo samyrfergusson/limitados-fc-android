@@ -93,6 +93,55 @@ function balanceTeams(players) {
   return teams;
 }
 
+// Chave canônica de um sorteio (times A/B são intercambiáveis: A×B == B×A).
+function teamKey(a, b) {
+  const ka = a.map((p) => p.id).sort().join(",");
+  const kb = b.map((p) => p.id).sort().join(",");
+  return ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
+}
+
+// Sorteia times equilibrados VARIANDO o resultado e evitando repetir os que já
+// saíram (usedKeys). Só repete depois de esgotar as combinações equilibradas.
+function balanceTeamsVaried(players, usedKeys) {
+  const shuffle = (arr) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+  const gks = players.filter((p) => p.posicao === "GOL");
+  const field = players.filter((p) => p.posicao !== "GOL");
+  const build = () => {
+    const teams = [{ players: [], total: 0 }, { players: [], total: 0 }];
+    const put = (p, t) => { t.players.push(p); t.total += p.overall || 0; };
+    // goleiros divididos igualmente
+    shuffle(gks).forEach((g) => put(g, teams[0].players.length <= teams[1].players.length ? teams[0] : teams[1]));
+    // linha: ordem embaralhada; mantém tamanhos parelhos e joga no time mais fraco
+    shuffle(field).forEach((p) => {
+      const sizeDiff = teams[0].players.length - teams[1].players.length;
+      const t = sizeDiff >= 1 ? teams[1] : sizeDiff <= -1 ? teams[0]
+        : (teams[0].total <= teams[1].total ? teams[0] : teams[1]);
+      put(p, t);
+    });
+    return teams;
+  };
+  // gera vários candidatos e fica com os mais equilibrados
+  const cands = [];
+  for (let i = 0; i < 250; i++) {
+    const teams = build();
+    cands.push({ teams, diff: Math.abs(teams[0].total - teams[1].total), key: teamKey(teams[0].players, teams[1].players) });
+  }
+  cands.sort((a, b) => a.diff - b.diff);
+  const pool = cands.slice(0, Math.max(10, Math.floor(cands.length / 3))); // terço mais equilibrado
+  const fresh = pool.filter((c) => !usedKeys.has(c.key));
+  const exhausted = fresh.length === 0;          // todas as combinações equilibradas já saíram
+  const from = exhausted ? pool : fresh;
+  const chosen = from[Math.floor(Math.random() * from.length)];
+  return { teams: chosen.teams, key: chosen.key, exhausted };
+}
+
 /* PIX BR Code (EMV) — copia e cola válido */
 function crc16(str) {
   let crc = 0xffff;
@@ -289,7 +338,8 @@ export default function App() {
     { k: "presenca", label: "Próximo jogo", Icon: CalendarCheck },
     { k: "financeiro", label: "Financeiro", Icon: Wallet },
     { k: "partidas", label: "Partidas", Icon: CalendarDays },
-    { k: "sortear", label: "Sortear times", Icon: Shuffle },
+    // Sortear é ferramenta da diretoria — só admin vê/usa
+    ...(isAdmin ? [{ k: "sortear", label: "Sortear times", Icon: Shuffle }] : []),
   ];
 
   return (
@@ -351,7 +401,7 @@ export default function App() {
         {tab === "presenca" && <Presenca data={data} update={update} />}
         {tab === "financeiro" && <Financeiro data={data} update={update} />}
         {tab === "partidas" && <Partidas data={data} update={update} stats={stats} />}
-        {tab === "sortear" && <Sortear data={data} />}
+        {tab === "sortear" && isAdmin && <Sortear data={data} />}
       </div>
 
       <div style={{ textAlign: "center", padding: "10px 0 24px", ...mono, fontSize: 10, color: T.line }}>
@@ -1213,8 +1263,20 @@ function Sortear({ data }) {
   const active = data.players.filter((p) => p.status === "ativo");
   const [sel, setSel] = useState(() => new Set(active.slice(0, 10).map((p) => p.id)));
   const [teams, setTeams] = useState(null);
+  const [used, setUsed] = useState(() => new Set()); // combinações já sorteadas
+  const [ciclo, setCiclo] = useState(false);          // avisa quando reiniciou o ciclo
+  const selKey = [...sel].sort().join(",");
+  // Muda a lista de presentes → zera o histórico (é outro conjunto de possibilidades)
+  useEffect(() => { setUsed(new Set()); setTeams(null); setCiclo(false); }, [selKey]);
   const toggle = (id) => setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const run = () => setTeams(balanceTeams(active.filter((p) => sel.has(p.id))));
+  const run = () => {
+    const players = active.filter((p) => sel.has(p.id));
+    if (players.length < 2) return;
+    const { teams: t, key, exhausted } = balanceTeamsVaried(players, used);
+    setUsed((prev) => { const next = exhausted ? new Set() : new Set(prev); next.add(key); return next; });
+    setCiclo(exhausted);
+    setTeams(t);
+  };
 
   const diff = teams ? Math.abs(teams[0].total - teams[1].total) : 0;
   const maxT = teams ? Math.max(teams[0].total, teams[1].total, 1) : 1;
@@ -1238,7 +1300,14 @@ function Sortear({ data }) {
             </button>
           ))}
         </div>
-        <PrimaryBtn onClick={run} full><Shuffle size={16} /> Equilibrar times</PrimaryBtn>
+        <PrimaryBtn onClick={run} full><Shuffle size={16} /> {teams ? "Sortear outra vez" : "Equilibrar times"}</PrimaryBtn>
+        {used.size > 0 && (
+          <div style={{ ...mono, fontSize: 10, color: ciclo ? T.amber : T.muted, textAlign: "center", marginTop: 8 }}>
+            {ciclo
+              ? "Todas as combinações equilibradas já saíram — recomeçando 🔄"
+              : `${used.size} combinação(ões) sorteada(s) · sem repetir`}
+          </div>
+        )}
       </Card>
 
       <div>
