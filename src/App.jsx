@@ -646,6 +646,7 @@ function Elenco({ data, update }) {
   );
 }
 function PlayerCard({ p, onEdit, onToggle, onDel, faded }) {
+  const admin = useIsAdmin();
   const c = CARGO[p.cargo] || CARGO.mensalista;
   return (
     <Card style={{ padding: 14, opacity: faded ? 0.55 : 1 }}>
@@ -654,7 +655,7 @@ function PlayerCard({ p, onEdit, onToggle, onDel, faded }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="flex items-center gap-2">
             <span style={{ fontWeight: 700, fontSize: 15 }}>{p.apelido}</span>
-            <span style={{ ...display, fontSize: 20, color: T.gold, marginLeft: "auto" }}>{p.overall}</span>
+            {admin && <span style={{ ...display, fontSize: 20, color: T.gold, marginLeft: "auto" }}>{p.overall}</span>}
           </div>
           <div style={{ fontSize: 12, color: T.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.nome}</div>
           <div className="flex items-center gap-1 flex-wrap" style={{ marginTop: 6 }}>
@@ -712,7 +713,7 @@ function PlayerForm({ player, onClose, onSave, embed, heading, submitLabel }) {
             {Object.entries(POS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </Field>
-        <Field label={`Overall (peso): ${f.overall}`}><input type="range" min="40" max="99" style={{ width: "100%" }} value={f.overall} onChange={(e) => set("overall", +e.target.value)} /></Field>
+        {!embed && <Field label={`Overall (peso): ${f.overall}`}><input type="range" min="40" max="99" style={{ width: "100%" }} value={f.overall} onChange={(e) => set("overall", +e.target.value)} /></Field>}
         <Field label="Aniversário (MM-DD)"><input placeholder="07-16" style={inputStyle} value={f.aniversario} onChange={(e) => set("aniversario", e.target.value)} /></Field>
         <Field label="Cargo">
           <select style={inputStyle} value={f.cargo} onChange={(e) => set("cargo", e.target.value)}>
@@ -1208,6 +1209,7 @@ const teamBtn = (on, c) => ({ ...mono, fontWeight: 700, width: 30, height: 28, b
 
 /* ============================ SORTEAR ============================ */
 function Sortear({ data }) {
+  const admin = useIsAdmin();
   const active = data.players.filter((p) => p.status === "ativo");
   const [sel, setSel] = useState(() => new Set(active.slice(0, 10).map((p) => p.id)));
   const [teams, setTeams] = useState(null);
@@ -1232,7 +1234,7 @@ function Sortear({ data }) {
               </div>
               <span style={{ flex: 1, fontSize: 13 }}>{p.apelido}</span>
               <Pill color={POS[p.posicao]}>{p.posicao}</Pill>
-              <span style={{ ...mono, fontSize: 12, color: T.gold, width: 22, textAlign: "right" }}>{p.overall}</span>
+              {admin && <span style={{ ...mono, fontSize: 12, color: T.gold, width: 22, textAlign: "right" }}>{p.overall}</span>}
             </button>
           ))}
         </div>
@@ -1268,7 +1270,7 @@ function Sortear({ data }) {
                     <div key={p.id} className="flex items-center gap-2" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}44` }}>
                       <Jersey p={p} size={30} />
                       <span style={{ flex: 1, fontSize: 13 }}>{p.apelido}</span>
-                      <span style={{ ...mono, fontSize: 13, color }}>{p.overall}</span>
+                      {admin && <span style={{ ...mono, fontSize: 13, color }}>{p.overall}</span>}
                     </div>
                   ))}
                 </Card>
