@@ -6,7 +6,7 @@ import {
   CalendarCheck, AlertTriangle, ThumbsUp, ThumbsDown, HelpCircle,
   LogOut, Mail, ShieldCheck, Eye, Download,
 } from "lucide-react";
-import { supabase, fetchData, pushData, subscribeData, isAdminEmail, selfRegister, setMyX1 } from "./supabase";
+import { supabase, fetchData, pushData, subscribeData, isAdminEmail, selfRegister, setMyX1, criarCobrancaPix } from "./supabase";
 
 /* ============================ TEMA ============================ */
 const T = {
@@ -443,7 +443,11 @@ function Login() {
     setBusy(true); setErr("");
     const { error } = await supabase.auth.signInWithOtp({ email: email.trim().toLowerCase(), options: { emailRedirectTo: window.location.origin + import.meta.env.BASE_URL } });
     setBusy(false);
-    if (error) setErr(error.message); else setSent(true);
+    if (error) {
+      const m = (error.message || "").trim();
+      // 500/erro de envio vem vazio ou como "{}"; mostra mensagem amigável
+      setErr(!m || m === "{}" ? "Não foi possível enviar o e-mail agora (falha no envio). Tente de novo em instantes." : m);
+    } else setSent(true);
   };
   return (
     <div style={{ background: T.bg, minHeight: 560, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif", padding: 20 }}>
@@ -1141,12 +1145,32 @@ function LancForm({ onAdd }) {
 }
 function PixModal({ club, player, items, onClose }) {
   const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [mp, setMp] = useState(null);   // resposta dinâmica do Mercado Pago
+  const [mpErr, setMpErr] = useState("");
   const total = items.reduce((s, i) => s + i.valor, 0);
-  const code = pixBRCode({ key: club.pixKey, name: club.nome, city: club.cidade, amount: total, txid: "COB" + noAcc(player.apelido).slice(0, 8) });
+  // PIX estático (fallback): copia-e-cola simples, sem baixa automática
+  const staticCode = pixBRCode({ key: club.pixKey, name: club.nome, city: club.cidade, amount: total, txid: "COB" + noAcc(player.apelido).slice(0, 8) });
+
+  // Tenta gerar a cobrança dinâmica no Mercado Pago (com baixa automática).
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const res = await criarCobrancaPix({ playerId: player.id });
+      if (!alive) return;
+      if (res.ok && res.qr_code) setMp(res); else setMpErr(res.error || "");
+      setLoading(false);
+    })();
+    return () => { alive = false; };
+  }, [player.id]);
+
+  const autobaixa = !!(mp && mp.qr_code);
+  const code = autobaixa ? mp.qr_code : staticCode;
   const copy = () => {
     try { navigator.clipboard.writeText(code); } catch { /* fallback: seleção manual */ }
     setCopied(true); setTimeout(() => setCopied(false), 1800);
   };
+
   return (
     <Modal title={`Cobrança PIX · ${player.apelido}`} onClose={onClose}>
       <div style={{ marginBottom: 12 }}>
@@ -1161,13 +1185,27 @@ function PixModal({ club, player, items, onClose }) {
           <span style={{ ...display, fontSize: 36, color: T.turf }}>{brl(total)}</span>
         </div>
       </div>
-      <Field label="PIX copia e cola (válido)">
-        <textarea readOnly value={code} onFocus={(e) => e.target.select()} style={{ ...inputStyle, height: 90, resize: "none", ...mono, fontSize: 11 }} />
-      </Field>
-      <PrimaryBtn onClick={copy} full>{copied ? <><Check size={16} /> Copiado!</> : <><Copy size={16} /> Copiar código PIX</>}</PrimaryBtn>
-      <div style={{ ...mono, fontSize: 10, color: T.muted, marginTop: 10, textAlign: "center" }}>
-        Padrão EMV/BR Code do Banco Central · chave: {club.pixKey}
-      </div>
+
+      {loading ? (
+        <div style={{ ...mono, fontSize: 12, color: T.muted, textAlign: "center", padding: 18 }}>Gerando cobrança…</div>
+      ) : (
+        <>
+          {autobaixa && mp.qr_code_base64 && (
+            <div style={{ textAlign: "center", marginBottom: 12 }}>
+              <img src={`data:image/png;base64,${mp.qr_code_base64}`} alt="QR Code PIX" style={{ width: 176, height: 176, borderRadius: 8, background: "#fff", padding: 6 }} />
+            </div>
+          )}
+          <Field label="PIX copia e cola">
+            <textarea readOnly value={code} onFocus={(e) => e.target.select()} style={{ ...inputStyle, height: 90, resize: "none", ...mono, fontSize: 11 }} />
+          </Field>
+          <PrimaryBtn onClick={copy} full>{copied ? <><Check size={16} /> Copiado!</> : <><Copy size={16} /> Copiar código PIX</>}</PrimaryBtn>
+          <div style={{ ...mono, fontSize: 10, marginTop: 10, textAlign: "center", color: autobaixa ? T.turf : T.amber }}>
+            {autobaixa
+              ? "✓ Baixa automática ativa — marca pago sozinho quando o PIX cair"
+              : `Cobrança manual (sem baixa automática)${mpErr ? " · " + mpErr : ""}`}
+          </div>
+        </>
+      )}
     </Modal>
   );
 }
