@@ -72,7 +72,12 @@ Deno.serve(async (req) => {
       }),
     });
     const mp = await mpResp.json();
-    if (!mpResp.ok) return json({ error: "Mercado Pago: " + (mp.message ?? mpResp.status) }, 502);
+    if (!mpResp.ok) {
+      console.error("MP erro:", JSON.stringify(mp));
+      const det = mp.message ?? mp.error ?? mpResp.status;
+      const cause = Array.isArray(mp.cause) && mp.cause[0]?.description ? " — " + mp.cause[0].description : "";
+      return json({ error: "Mercado Pago: " + det + cause }, 502);
+    }
 
     const tx = mp.point_of_interaction?.transaction_data;
     await admin.from("cobrancas").upsert({

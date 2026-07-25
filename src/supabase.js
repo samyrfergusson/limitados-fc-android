@@ -52,8 +52,14 @@ export async function selfRegister(player) {
 // Retorna { ok, qr_code, qr_code_base64, valor, payment_id } ou { ok:false, error }.
 export async function criarCobrancaPix(opts = {}) {
   const { data, error } = await supabase.functions.invoke("criar-cobranca", { body: opts });
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    // Extrai a mensagem real do corpo da resposta (não só "non-2xx status")
+    let msg = error.message || "falha ao gerar cobrança";
+    try { const body = await error.context?.json?.(); if (body?.error) msg = body.error; } catch { /* corpo não-JSON */ }
+    return { ok: false, error: msg };
+  }
   if (data?.error) return { ok: false, error: data.error };
+  if (!data?.qr_code) return { ok: false, error: "Mercado Pago não retornou o código PIX" };
   return { ok: true, ...data };
 }
 
