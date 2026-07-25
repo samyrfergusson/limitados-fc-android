@@ -57,6 +57,14 @@ export async function criarCobrancaPix(opts = {}) {
   return { ok: true, ...data };
 }
 
+// Jogador ajusta o próprio X1 (drible) UMA vez. A função no banco valida o
+// e-mail do login e recusa se já foi ajustado antes.
+export async function setMyX1(valor) {
+  const { error } = await supabase.rpc("set_my_x1", { valor });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
 // Confere se o e-mail logado está na tabela de admins (diretoria).
 export async function isAdminEmail(email) {
   if (!email) return false;

@@ -108,5 +108,48 @@ $$;
 
 grant execute on function public.self_register_player(jsonb) to authenticated;
 
+-- ---------- Jogador ajusta o proprio X1 (drible) UMA vez ----------
+-- Valida o e-mail do login, altera SO o campo atr.dri do proprio jogador e
+-- marca x1Set=true. Se ja foi ajustado, recusa. Admin edita sem restricao.
+create or replace function public.set_my_x1(valor int)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  uemail   text := auth.email();
+  arr      jsonb;
+  el       jsonb;
+  newarr   jsonb := '[]'::jsonb;
+  matched  boolean := false;
+begin
+  if uemail is null then raise exception 'Nao autenticado.'; end if;
+  if valor is null or valor < 1 or valor > 99 then raise exception 'Valor invalido (1 a 99).'; end if;
+
+  select dados->'players' into arr from public.grupo where id = 1;
+  if arr is null then raise exception 'Grupo sem elenco.'; end if;
+
+  for el in select * from jsonb_array_elements(arr) loop
+    if lower(el->>'email') = lower(uemail) then
+      if coalesce((el->>'x1Set')::boolean, false) then
+        raise exception 'Voce ja ajustou seu X1.';
+      end if;
+      el := jsonb_set(el, '{atr}', coalesce(el->'atr', '{}'::jsonb));
+      el := jsonb_set(el, '{atr,dri}', to_jsonb(valor));
+      el := jsonb_set(el, '{x1Set}', 'true'::jsonb);
+      matched := true;
+    end if;
+    newarr := newarr || jsonb_build_array(el);
+  end loop;
+
+  if not matched then raise exception 'Voce ainda nao tem ficha no elenco.'; end if;
+
+  update public.grupo set dados = jsonb_set(dados, '{players}', newarr), updated_at = now() where id = 1;
+end;
+$$;
+
+grant execute on function public.set_my_x1(int) to authenticated;
+
 -- Pronto. Depois disso: preencha src/config.js com a URL e a chave anon,
 -- rode o app, entre com um e-mail da diretoria e ele configura o grupo sozinho.

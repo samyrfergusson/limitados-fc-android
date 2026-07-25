@@ -6,7 +6,7 @@ import {
   CalendarCheck, AlertTriangle, ThumbsUp, ThumbsDown, HelpCircle,
   LogOut, Mail, ShieldCheck, Eye, Download,
 } from "lucide-react";
-import { supabase, fetchData, pushData, subscribeData, isAdminEmail, selfRegister } from "./supabase";
+import { supabase, fetchData, pushData, subscribeData, isAdminEmail, selfRegister, setMyX1 } from "./supabase";
 
 /* ============================ TEMA ============================ */
 const T = {
@@ -26,6 +26,8 @@ const LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAATwAAAF/CAIAAABbq+KT
 // se o usuário logado é da diretoria (pode editar) ou está em modo consulta.
 const AdminCtx = React.createContext(false);
 const useIsAdmin = () => React.useContext(AdminCtx);
+const MeCtx = React.createContext(""); // e-mail do usuário logado
+const useMe = () => React.useContext(MeCtx);
 
 /* ============================ HELPERS ============================ */
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -345,6 +347,7 @@ export default function App() {
 
   return (
     <AdminCtx.Provider value={isAdmin}>
+    <MeCtx.Provider value={myEmail}>
     <div style={{ background: T.bg, color: T.bone, minHeight: 640, fontFamily: "'Inter', sans-serif" }}>
       <style>{FONTS}</style>
 
@@ -416,6 +419,7 @@ export default function App() {
         </div>
       )}
     </div>
+    </MeCtx.Provider>
     </AdminCtx.Provider>
   );
 }
@@ -699,7 +703,19 @@ function Elenco({ data, update }) {
 }
 function PlayerCard({ p, onEdit, onToggle, onDel, faded }) {
   const admin = useIsAdmin();
+  const me = useMe();
   const c = CARGO[p.cargo] || CARGO.mensalista;
+  // O próprio jogador (não-admin) pode ajustar seu X1 uma única vez (p.x1Set trava depois).
+  const canEditX1 = !admin && !!me && (p.email || "").toLowerCase() === me.toLowerCase() && !p.x1Set;
+  const [x1val, setX1val] = useState(p.atr?.dri ?? 70);
+  const [x1busy, setX1busy] = useState(false);
+  const [x1err, setX1err] = useState("");
+  const saveX1 = async () => {
+    setX1busy(true); setX1err("");
+    const res = await setMyX1(Number(x1val));
+    setX1busy(false);
+    if (!res.ok) setX1err(res.error || "Não foi possível salvar.");
+  };
   return (
     <Card style={{ padding: 14, opacity: faded ? 0.55 : 1 }}>
       <div className="flex gap-3">
@@ -726,6 +742,19 @@ function PlayerCard({ p, onEdit, onToggle, onDel, faded }) {
           </div>
         ))}
       </div>
+      {canEditX1 && (
+        <div style={{ marginTop: 10, padding: 10, borderRadius: 10, background: T.panel2, border: `1px solid ${T.gold}66` }}>
+          <div style={{ ...mono, fontSize: 10, color: T.gold, marginBottom: 6 }}>⚡ Ajuste seu X1 — só pode 1 vez!</div>
+          <div className="flex items-center gap-2">
+            <input type="number" min="1" max="99" value={x1val} onChange={(e) => setX1val(e.target.value)}
+              style={{ ...inputStyle, width: 72, textAlign: "center", padding: "6px 4px" }} />
+            <button onClick={saveX1} disabled={x1busy} style={{ ...smallBtn(T.turf), opacity: x1busy ? 0.6 : 1 }}>
+              <Check size={11} /> {x1busy ? "Salvando…" : "Salvar meu X1"}
+            </button>
+          </div>
+          {x1err && <div style={{ color: T.red, fontSize: 11, marginTop: 6 }}>{x1err}</div>}
+        </div>
+      )}
       <div className="flex items-center gap-2" style={{ marginTop: 12, ...mono, fontSize: 10, color: T.muted }}>
         <span>desde {new Date(p.dataEntrada).toLocaleDateString("pt-BR", { month: "2-digit", year: "2-digit" })}</span>
         {p.dataSaida && <span style={{ color: T.red }}>· saiu {new Date(p.dataSaida).toLocaleDateString("pt-BR", { month: "2-digit", year: "2-digit" })}</span>}
