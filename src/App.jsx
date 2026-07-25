@@ -718,8 +718,8 @@ function PlayerCard({ p, onEdit, onToggle, onDel, faded }) {
         </div>
       </div>
       {/* atributos mini */}
-      <div className="grid" style={{ gridTemplateColumns: "repeat(5,1fr)", gap: 6, marginTop: 12 }}>
-        {[["VEL", p.atr?.vel], ["FIN", p.atr?.fin], ["PAS", p.atr?.pas], ["DEF", p.atr?.def], ["FIS", p.atr?.fis]].map(([k, v]) => (
+      <div className="grid" style={{ gridTemplateColumns: "repeat(6,1fr)", gap: 6, marginTop: 12 }}>
+        {[["VEL", p.atr?.vel], ["FIN", p.atr?.fin], ["PAS", p.atr?.pas], ["DEF", p.atr?.def], ["FIS", p.atr?.fis], ["DRI", p.atr?.dri]].map(([k, v]) => (
           <div key={k} style={{ textAlign: "center" }}>
             <div style={{ ...mono, fontSize: 9, color: T.muted }}>{k}</div>
             <div style={{ ...mono, fontSize: 13, fontWeight: 700, color: (v || 0) >= 80 ? T.turf : T.bone }}>{v || "–"}</div>
@@ -742,7 +742,7 @@ function PlayerForm({ player, onClose, onSave, embed, heading, submitLabel }) {
   const [f, setF] = useState(player || {
     id: uid(), nome: "", apelido: "", numero: "", posicao: "MEI", overall: 75, cargo: "mensalista",
     mensalista: true, status: "ativo", dataEntrada: new Date().toISOString().slice(0, 10), dataSaida: null,
-    aniversario: "", atr: { vel: 70, fin: 70, pas: 70, def: 70, fis: 70 },
+    aniversario: "", atr: { vel: 70, fin: 70, pas: 70, def: 70, fis: 70, dri: 70 },
   });
   const set = (k, v) => setF((x) => ({ ...x, [k]: v }));
   // Guarda o texto cru enquanto edita (deixa apagar tudo/ficar vazio);
@@ -781,11 +781,11 @@ function PlayerForm({ player, onClose, onSave, embed, heading, submitLabel }) {
         </Field>
       </div>
       <div style={{ ...mono, fontSize: 11, color: T.muted, textTransform: "uppercase", margin: "6px 0 8px" }}>Características</div>
-      <div className="grid" style={{ gridTemplateColumns: "repeat(5,1fr)", gap: 8 }}>
-        {[["vel", "VEL"], ["fin", "FIN"], ["pas", "PAS"], ["def", "DEF"], ["fis", "FIS"]].map(([k, lb]) => (
+      <div className="grid" style={{ gridTemplateColumns: "repeat(6,1fr)", gap: 8 }}>
+        {[["vel", "VEL"], ["fin", "FIN"], ["pas", "PAS"], ["def", "DEF"], ["fis", "FIS"], ["dri", "DRI"]].map(([k, lb]) => (
           <div key={k} style={{ textAlign: "center" }}>
             <div style={{ ...mono, fontSize: 10, color: T.muted }}>{lb}</div>
-            <input type="number" min="1" max="99" style={{ ...inputStyle, textAlign: "center", padding: "6px 2px" }} value={f.atr[k]} onChange={(e) => setAtr(k, e.target.value)} />
+            <input type="number" min="1" max="99" style={{ ...inputStyle, textAlign: "center", padding: "6px 2px" }} value={f.atr?.[k] ?? ""} onChange={(e) => setAtr(k, e.target.value)} />
           </div>
         ))}
       </div>
