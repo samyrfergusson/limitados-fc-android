@@ -78,3 +78,19 @@ export async function isAdminEmail(email) {
     .from("admins").select("email").eq("email", email.toLowerCase()).maybeSingle();
   return !!data;
 }
+
+// Confere se o e-mail logado é o PRESIDENTE (admins.role = 'presidente').
+export async function isPresidentEmail(email) {
+  if (!email) return false;
+  const { data } = await supabase
+    .from("admins").select("role").eq("email", email.toLowerCase()).maybeSingle();
+  return data?.role === "presidente";
+}
+
+// Presidente promove/remove a "Estrela da Patota" de um jogador. A função no
+// banco valida que o chamador é o presidente (nem outros admins conseguem).
+export async function setEstrela(playerId, estrela) {
+  const { error } = await supabase.rpc("set_estrela", { player_id: playerId, estrela });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}

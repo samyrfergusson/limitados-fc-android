@@ -6,7 +6,7 @@ import {
   CalendarCheck, AlertTriangle, ThumbsUp, ThumbsDown, HelpCircle,
   LogOut, Mail, ShieldCheck, Eye, Download,
 } from "lucide-react";
-import { supabase, fetchData, pushData, subscribeData, isAdminEmail, selfRegister, setMyX1, criarCobrancaPix } from "./supabase";
+import { supabase, fetchData, pushData, subscribeData, isAdminEmail, selfRegister, setMyX1, criarCobrancaPix, isPresidentEmail, setEstrela } from "./supabase";
 
 /* ============================ TEMA ============================ */
 const T = {
@@ -28,6 +28,8 @@ const AdminCtx = React.createContext(false);
 const useIsAdmin = () => React.useContext(AdminCtx);
 const MeCtx = React.createContext(""); // e-mail do usuário logado
 const useMe = () => React.useContext(MeCtx);
+const PresidentCtx = React.createContext(false); // é o presidente?
+const useIsPresident = () => React.useContext(PresidentCtx);
 
 /* ============================ HELPERS ============================ */
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -285,6 +287,7 @@ function Jersey({ p, size = 40 }) {
 export default function App() {
   const [session, setSession] = useState(undefined); // undefined=carregando, null=deslogado
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isPresident, setIsPresident] = useState(false);
   const [data, setData] = useState(null);
   const [tab, setTab] = useState("destaques");
   const [notice, setNotice] = useState("");
@@ -298,11 +301,12 @@ export default function App() {
 
   // ao logar: descobre o papel, carrega os dados e assina o tempo real
   useEffect(() => {
-    if (!session) { setData(null); setIsAdmin(false); return; }
+    if (!session) { setData(null); setIsAdmin(false); setIsPresident(false); return; }
     let unsub = () => {};
     (async () => {
       const admin = await isAdminEmail(session.user.email);
       setIsAdmin(admin);
+      isPresidentEmail(session.user.email).then(setIsPresident);
       let d = await fetchData();
       if (!d || !d.players) {              // banco ainda vazio → 1ª configuração
         if (admin) { d = seed(); await pushData(d); }
@@ -347,6 +351,7 @@ export default function App() {
 
   return (
     <AdminCtx.Provider value={isAdmin}>
+    <PresidentCtx.Provider value={isPresident}>
     <MeCtx.Provider value={myEmail}>
     <div style={{ background: T.bg, color: T.bone, minHeight: 640, fontFamily: "'Inter', sans-serif" }}>
       <style>{FONTS}</style>
@@ -420,6 +425,7 @@ export default function App() {
       )}
     </div>
     </MeCtx.Provider>
+    </PresidentCtx.Provider>
     </AdminCtx.Provider>
   );
 }
@@ -720,6 +726,15 @@ function PlayerCard({ p, onEdit, onToggle, onDel, faded }) {
     setX1busy(false);
     if (!res.ok) setX1err(res.error || "Não foi possível salvar.");
   };
+  // Estrela da Patota — só o presidente promove/remove (nem outros admins).
+  const president = useIsPresident();
+  const [estBusy, setEstBusy] = useState(false);
+  const toggleEstrela = async () => {
+    setEstBusy(true);
+    const res = await setEstrela(p.id, !p.estrela);
+    setEstBusy(false);
+    if (!res.ok) alert(res.error || "Não foi possível alterar a estrela.");
+  };
   return (
     <Card style={{ padding: 14, opacity: faded ? 0.55 : 1 }}>
       <div className="flex gap-3">
@@ -729,6 +744,20 @@ function PlayerCard({ p, onEdit, onToggle, onDel, faded }) {
             <span style={{ fontWeight: 700, fontSize: 15 }}>{p.apelido}</span>
             {admin && <span style={{ ...display, fontSize: 20, color: T.gold, marginLeft: "auto" }}>{p.overall}</span>}
           </div>
+          {(p.estrela || president) && (
+            <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: 4, justifyContent: "flex-end" }}>
+              {p.estrela && (
+                <span style={{ ...mono, fontSize: 9, fontWeight: 700, color: T.gold, border: `1px solid ${T.gold}`, background: T.gold + "1a", borderRadius: 999, padding: "2px 8px", display: "inline-flex", alignItems: "center", gap: 3 }}>
+                  <Star size={10} fill={T.gold} color={T.gold} /> ESTRELA DA PATOTA
+                </span>
+              )}
+              {president && (
+                <button onClick={toggleEstrela} disabled={estBusy} style={{ ...mono, fontSize: 9, fontWeight: 700, color: p.estrela ? T.red : T.gold, border: `1px solid ${(p.estrela ? T.red : T.gold)}66`, borderRadius: 7, padding: "2px 7px", opacity: estBusy ? 0.6 : 1, background: "transparent" }}>
+                  {estBusy ? "…" : (p.estrela ? "remover" : "⭐ promover")}
+                </button>
+              )}
+            </div>
+          )}
           <div style={{ fontSize: 12, color: T.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.nome}</div>
           <div className="flex items-center gap-1 flex-wrap" style={{ marginTop: 6 }}>
             <Pill color={POS[p.posicao]}>{POS_LABEL[p.posicao]}</Pill>
@@ -781,6 +810,7 @@ function PlayerForm({ player, onClose, onSave, embed, heading, submitLabel }) {
   // Guarda o texto cru enquanto edita (deixa apagar tudo/ficar vazio);
   // a conversão para número acontece só ao salvar (submit).
   const setAtr = (k, v) => setF((x) => ({ ...x, atr: { ...x.atr, [k]: v } }));
+  const president = useIsPresident(); // só o presidente promove a cargos elevados
   const submit = () => onSave({
     ...f,
     overall: Number(f.overall) || 0,
@@ -803,7 +833,9 @@ function PlayerForm({ player, onClose, onSave, embed, heading, submitLabel }) {
         <Field label="Cargo">
           <select style={inputStyle} value={f.cargo} onChange={(e) => set("cargo", e.target.value)}>
             {Object.entries(CARGO)
-              .filter(([k]) => !embed || k === "mensalista" || k === "diarista")
+              // mensalista/diarista sempre; o cargo atual (evita apagar sem querer);
+              // cargos elevados (presidente/vice/admin) SÓ o presidente promove
+              .filter(([k]) => k === "mensalista" || k === "diarista" || k === f.cargo || (!embed && president))
               .map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
         </Field>

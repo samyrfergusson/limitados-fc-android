@@ -151,5 +151,51 @@ $$;
 
 grant execute on function public.set_my_x1(int) to authenticated;
 
+-- ---------- Presidente & Estrela da Patota ----------
+-- Papel na diretoria: 'presidente' tem poderes exclusivos (nem outros admins).
+alter table public.admins add column if not exists role text not null default 'admin';
+-- >>> MARQUE O PRESIDENTE (troque pelo e-mail real):
+-- update public.admins set role = 'presidente' where email = 'presidente@exemplo.com';
+
+-- Só o presidente promove/remove a "Estrela da Patota".
+create or replace function public.set_estrela(player_id text, estrela boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  uemail  text := auth.email();
+  arr     jsonb;
+  el      jsonb;
+  newarr  jsonb := '[]'::jsonb;
+  matched boolean := false;
+begin
+  if uemail is null then raise exception 'Nao autenticado.'; end if;
+  if not exists (
+    select 1 from public.admins where lower(email) = lower(uemail) and role = 'presidente'
+  ) then
+    raise exception 'Apenas o presidente pode alterar a Estrela da Patota.';
+  end if;
+
+  select dados->'players' into arr from public.grupo where id = 1;
+  if arr is null then raise exception 'Grupo sem elenco.'; end if;
+
+  for el in select * from jsonb_array_elements(arr) loop
+    if el->>'id' = player_id then
+      el := jsonb_set(el, '{estrela}', to_jsonb(estrela));
+      matched := true;
+    end if;
+    newarr := newarr || jsonb_build_array(el);
+  end loop;
+
+  if not matched then raise exception 'Jogador nao encontrado.'; end if;
+
+  update public.grupo set dados = jsonb_set(dados, '{players}', newarr), updated_at = now() where id = 1;
+end;
+$$;
+
+grant execute on function public.set_estrela(text, boolean) to authenticated;
+
 -- Pronto. Depois disso: preencha src/config.js com a URL e a chave anon,
 -- rode o app, entre com um e-mail da diretoria e ele configura o grupo sozinho.
