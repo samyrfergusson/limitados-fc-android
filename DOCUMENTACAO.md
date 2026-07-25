@@ -126,15 +126,18 @@ Ficha do jogador (`players[]`):
   "dataEntrada", "dataSaida", "aniversario",
   "email",                   // vincula ao login (auto-cadastro)
   "x1Set": true,             // trava do auto-ajuste do X1
+  "estrela": true,           // Estrela da Patota (só o presidente promove)
   "atr": { "vel", "fin", "pas", "def", "fis", "dri" }  // dri = X1
 }
 ```
 
 ### Tabela `admins`
 Lista de e-mails que **podem editar** (é isso que define admin, NÃO o campo "cargo").
+Coluna `role`: `'admin'` (padrão) ou `'presidente'` (poderes exclusivos — ver seção 6).
 ```sql
-select * from public.admins;                              -- ver admins
-insert into public.admins (email) values ('x@y.com');     -- dar permissão
+select email, role from public.admins;                    -- ver admins e papéis
+insert into public.admins (email) values ('x@y.com');     -- dar permissão de admin
+update public.admins set role = 'presidente' where email = 'x@y.com';  -- tornar presidente
 delete from public.admins where email = 'x@y.com';        -- remover permissão
 ```
 
@@ -148,11 +151,16 @@ Cada cobrança PIX gerada (para conciliar o pagamento). Só as Edge Functions ac
 - **Login:** link mágico por e-mail (`signInWithOtp`). Sem senha — o usuário recebe um link e clica.
 - **Redirect:** o link volta para `origin + BASE_URL` (precisa estar em *Authentication → URL Configuration → Redirect URLs* no Supabase).
 - **Quem edita:** apenas e-mails na tabela `admins`. Os demais ficam em **modo consulta**.
+- **Hierarquia:** o **presidente** (`admins.role = 'presidente'`) tem poderes exclusivos que **nem outros admins têm**:
+  - promover/remover a **Estrela da Patota**;
+  - definir **cargos elevados** (Presidente/Vice/Admin) no formulário do jogador — admins comuns só definem Mensalista/Diarista.
+  > Observação: o "cargo" é rótulo visual; a permissão real de edição continua sendo a tabela `admins`.
 - **RLS (Row Level Security):**
   - `grupo`: todo autenticado **lê**; só admin **escreve**.
   - Exceções seguras via funções `security definer`:
     - `self_register_player(payload)` — jogador se cadastra 1x no 1º acesso.
     - `set_my_x1(valor)` — jogador ajusta o próprio X1 1x (trava depois).
+    - `set_estrela(player_id, estrela)` — **só o presidente** promove/remove a Estrela da Patota.
 
 ---
 
@@ -163,6 +171,7 @@ Cada cobrança PIX gerada (para conciliar o pagamento). Só as Edge Functions ac
 - **Overall (peso):** visível **só para admin** (evita briga).
 - **Auto-cadastro:** no 1º acesso, o jogador (não-admin, sem ficha) preenche a própria (cargo limitado a Mensalista/Diarista; sem overall).
 - **Ajuste do X1:** o jogador pode alterar o próprio X1 **uma única vez**, depois trava.
+- **⭐ Estrela da Patota:** badge de honraria mostrado abaixo do Overall no card. **Visível para todos**; só o **presidente** classifica/promove (botão exclusivo dele, validado no servidor).
 
 ### Destaques / Rankings
 Artilheiros, garçom (assistências), ranking por pontos, craque da última, goleiros (gols sofridos).
@@ -249,6 +258,8 @@ npm run dev        # http://127.0.0.1:5173/
 **Publicar uma mudança:** `git push origin main` (site e APK atualizam sozinhos).
 
 **Dar/remover permissão de admin:** editar a tabela `admins` no Supabase (SQL na seção 5).
+
+**Definir o presidente:** `update public.admins set role = 'presidente' where email = '<email>';` (o e-mail precisa já estar em `admins`). Só ele promove a Estrela da Patota e cargos elevados.
 
 **Baixar o APK mais recente:** botão no site ou o link de Release (seção 1).
 
