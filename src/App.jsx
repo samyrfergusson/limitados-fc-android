@@ -6,7 +6,7 @@ import {
   CalendarCheck, AlertTriangle, ThumbsUp, ThumbsDown, HelpCircle,
   LogOut, Mail, ShieldCheck, Eye, Download,
 } from "lucide-react";
-import { supabase, fetchData, pushData, subscribeData, isAdminEmail, selfRegister, setMyX1, criarCobrancaPix, isPresidentEmail, setEstrela } from "./supabase";
+import { supabase, fetchData, pushData, subscribeData, isAdminEmail, selfRegister, setMyX1, criarCobrancaPix, isPresidentEmail, setEstrela, setMyRsvp } from "./supabase";
 
 /* ============================ TEMA ============================ */
 const T = {
@@ -873,9 +873,22 @@ const RSVP = {
 };
 function Presenca({ data, update }) {
   const isAdmin = useIsAdmin();
+  const me = useMe();
   const [closing, setClosing] = useState(false);
+  const [rsvpBusy, setRsvpBusy] = useState(false);
+  const [rsvpErr, setRsvpErr] = useState("");
   const jogo = data.proximoJogo;
   const active = data.players.filter((p) => p.status === "ativo");
+  // Jogador logado (para confirmar a própria presença).
+  const myPlayer = data.players.find((p) => (p.email || "").toLowerCase() === (me || "").toLowerCase());
+  const confirmarMinha = async (k) => {
+    if (!myPlayer) return;
+    setRsvpBusy(true); setRsvpErr("");
+    const cur = jogo.rsvp?.[myPlayer.id]?.s;
+    const res = await setMyRsvp(cur === k ? null : k); // toca de novo no mesmo = desmarca
+    setRsvpBusy(false);
+    if (!res.ok) setRsvpErr(res.error || "Não foi possível confirmar.");
+  };
   const setJogo = (k, v) => update((d) => ({ ...d, proximoJogo: { ...d.proximoJogo, [k]: v } }));
   const setRegra = (k, v) => update((d) => ({ ...d, regras: { ...d.regras, [k]: +v || 0 } }));
   const setRsvp = (id, s) => update((d) => {
@@ -927,6 +940,25 @@ function Presenca({ data, update }) {
         </div>
       </Card>
 
+      {myPlayer && (
+        <Card style={{ padding: 16, marginBottom: 16, borderColor: T.turf + "66" }}>
+          <div style={{ ...mono, fontSize: 12, color: T.turf, fontWeight: 700, marginBottom: 4 }}>SUA CONFIRMAÇÃO</div>
+          <div style={{ fontSize: 12, color: T.muted, marginBottom: 10 }}>{myPlayer.apelido}, você vai no próximo jogo?</div>
+          <div className="flex gap-2">
+            {Object.entries(RSVP).map(([k, v]) => {
+              const on = jogo.rsvp?.[myPlayer.id]?.s === k;
+              return (
+                <button key={k} onClick={() => confirmarMinha(k)} disabled={rsvpBusy} className="flex items-center justify-center gap-2" style={{
+                  flex: 1, padding: "11px 8px", borderRadius: 10, fontWeight: 700, fontSize: 13, opacity: rsvpBusy ? 0.6 : 1,
+                  border: `1px solid ${on ? v.color : T.line}`, background: on ? v.color + "22" : "transparent", color: on ? v.color : T.muted,
+                }}><v.Icon size={16} /> {v.label}</button>
+              );
+            })}
+          </div>
+          {rsvpErr && <div style={{ color: T.red, fontSize: 12, marginTop: 8 }}>{rsvpErr}</div>}
+        </Card>
+      )}
+
       <Card style={{ padding: 16, marginBottom: 16, borderColor: T.amber + "44" }}>
         <div className="flex items-center gap-2 flex-wrap">
           <AlertTriangle size={16} color={T.amber} />
@@ -957,7 +989,7 @@ function Presenca({ data, update }) {
               <div key={p.id} className="flex items-center gap-2" style={{ padding: "5px 0" }}>
                 <Jersey p={p} size={28} />
                 <span style={{ flex: 1, fontSize: 13 }}>{p.apelido}</span>
-                <RsvpToggle p={p} />
+                {isAdmin && <RsvpToggle p={p} />}
               </div>
             ))}
           </Card>

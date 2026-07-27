@@ -197,5 +197,50 @@ $$;
 
 grant execute on function public.set_estrela(text, boolean) to authenticated;
 
+-- ---------- Jogador confirma a PRÓPRIA presença no próximo jogo ----------
+-- Valida o e-mail do login e altera SÓ o rsvp do próprio jogador.
+-- status: 'vou' | 'duvida' | 'fora' | null (null = desmarca).
+create or replace function public.set_my_rsvp(status text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  uemail      text := auth.email();
+  pid         text;
+  base        jsonb;
+  existing_at text;
+  at_ms       bigint;
+begin
+  if uemail is null then raise exception 'Nao autenticado.'; end if;
+  if status is not null and status not in ('vou','duvida','fora') then
+    raise exception 'Status invalido.';
+  end if;
+
+  select el->>'id' into pid
+  from public.grupo g, jsonb_array_elements(g.dados->'players') el
+  where g.id = 1 and lower(el->>'email') = lower(uemail)
+  limit 1;
+  if pid is null then raise exception 'Voce nao tem ficha no elenco.'; end if;
+
+  select coalesce(dados, '{}'::jsonb) into base from public.grupo where id = 1;
+  base := jsonb_set(base, '{proximoJogo}', coalesce(base->'proximoJogo', '{}'::jsonb));
+  base := jsonb_set(base, '{proximoJogo,rsvp}', coalesce(base->'proximoJogo'->'rsvp', '{}'::jsonb));
+
+  if status is null then
+    base := base #- array['proximoJogo','rsvp',pid];
+  else
+    existing_at := base->'proximoJogo'->'rsvp'->pid->>'at';
+    at_ms := coalesce(existing_at::bigint, (extract(epoch from now())*1000)::bigint);
+    base := jsonb_set(base, array['proximoJogo','rsvp',pid], jsonb_build_object('s', status, 'at', at_ms));
+  end if;
+
+  update public.grupo set dados = base, updated_at = now() where id = 1;
+end;
+$$;
+
+grant execute on function public.set_my_rsvp(text) to authenticated;
+
 -- Pronto. Depois disso: preencha src/config.js com a URL e a chave anon,
 -- rode o app, entre com um e-mail da diretoria e ele configura o grupo sozinho.

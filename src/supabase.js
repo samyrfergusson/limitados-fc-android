@@ -79,6 +79,14 @@ export async function isAdminEmail(email) {
   return !!data;
 }
 
+// Jogador confirma a PRÓPRIA presença no próximo jogo (vou/duvida/fora).
+// Passe null para desmarcar. A função no banco valida o e-mail do login.
+export async function setMyRsvp(status) {
+  const { error } = await supabase.rpc("set_my_rsvp", { status });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
 // Confere se o e-mail logado é o PRESIDENTE (admins.role = 'presidente').
 export async function isPresidentEmail(email) {
   if (!email) return false;
