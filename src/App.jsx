@@ -1366,8 +1366,13 @@ function Partidas({ data, update, stats }) {
 }
 function MatchForm({ data, onClose, onSave }) {
   const active = data.players.filter((p) => p.status === "ativo");
-  const [dataJogo, setDataJogo] = useState(new Date().toISOString().slice(0, 10));
-  const [team, setTeam] = useState({}); // id -> 'A'|'B'|undefined
+  const [dataJogo, setDataJogo] = useState(data.sorteioAtual?.data || new Date().toISOString().slice(0, 10));
+  // Já vem preenchido com o último sorteio (Vermelho = A, Azul = B).
+  const [team, setTeam] = useState(() => {
+    const sa = data.sorteioAtual; const map = {};
+    if (sa?.timeVermelho) { sa.timeVermelho.forEach((id) => (map[id] = "A")); (sa.timeAzul || []).forEach((id) => (map[id] = "B")); }
+    return map;
+  }); // id -> 'A'|'B'|undefined
   const [placarA, setA] = useState(0); const [placarB, setB] = useState(0);
   const [gols, setGols] = useState({}); const [assist, setAssist] = useState({}); const [craque, setCraque] = useState("");
   const [equilibrio, setEquilibrio] = useState(""); const [obs, setObs] = useState("");
@@ -1393,7 +1398,9 @@ function MatchForm({ data, onClose, onSave }) {
         <Field label="Data"><input type="date" style={inputStyle} value={dataJogo} onChange={(e) => setDataJogo(e.target.value)} /></Field>
         <GhostBtn onClick={autoBalance}><Shuffle size={14} /> Sortear times equilibrados</GhostBtn>
       </div>
-      <div style={{ ...mono, fontSize: 11, color: T.muted, marginBottom: 6 }}>Escolha os presentes e o time (Vermelho/Azul):</div>
+      <div style={{ ...mono, fontSize: 11, color: T.muted, marginBottom: 6 }}>
+        {data.sorteioAtual?.timeVermelho ? "Times já preenchidos pelo último sorteio — ajuste se precisar:" : "Escolha os presentes e o time (Vermelho/Azul):"}
+      </div>
       <div style={{ maxHeight: 220, overflowY: "auto", border: `1px solid ${T.line}`, borderRadius: 10, padding: 8, marginBottom: 12 }}>
         {active.map((p) => (
           <div key={p.id} className="flex items-center gap-2" style={{ padding: "4px 2px" }}>
