@@ -2,7 +2,7 @@
 
 App de gestão da pelada de quinta do **Limitados F.C**: elenco, estatísticas, sorteio de times, financeiro com PIX (baixa automática) e presença. Web + Android, com dados na nuvem e sincronização em tempo real.
 
-> Última atualização desta doc: 2026-07-25
+> Última atualização desta doc: 2026-07-31
 
 ---
 
@@ -109,9 +109,12 @@ Estrutura de `dados` (JSON):
   "payments": { "<playerId>": { "<YYYY-MM>": "pago|pendente|atrasado" } },
   "multas":   [ { "id", "playerId", "tipo", "valor", "data", "pago" } ],
   "lancamentos": [ { "id", "data", "desc", "tipo": "receita|despesa", "valor" } ],
-  "proximoJogo": { "data", "local", "rsvp": {...} },
+  "proximoJogo": { "data", "hora", "local", "vagas",
+                   "rsvp": { "<playerId>": { "s": "vou|duvida|fora", "at": <timestamp> } } },
   "regras":   { valores de multas },
-  "sorteioHist": { "<chave-dos-presentes>": ["<combinações já sorteadas>"] }
+  "sorteioHist":  { "<chave-dos-presentes>": ["<combinações já sorteadas>"] },
+  "sorteioAtual": { "data", "timeVermelho": ["<ids>"], "timeAzul": ["<ids>"] }, // times atuais (persistem)
+  "chamadas":     [ { "id", "data", "vou", "duvida", "fora", "presentes" } ]     // histórico de chamadas
 }
 ```
 
@@ -161,6 +164,7 @@ Cada cobrança PIX gerada (para conciliar o pagamento). Só as Edge Functions ac
     - `self_register_player(payload)` — jogador se cadastra 1x no 1º acesso.
     - `set_my_x1(valor)` — jogador ajusta o próprio X1 1x (trava depois).
     - `set_estrela(player_id, estrela)` — **só o presidente** promove/remove a Estrela da Patota.
+    - `set_my_rsvp(status)` — jogador confirma a **própria** presença (vou/duvida/fora).
 
 ---
 
@@ -178,11 +182,15 @@ Artilheiros, garçom (assistências), ranking por pontos, craque da última, gol
 Fórmula de pontos: `3·vitória + empate + 2·gol + assistência + 3·craque`.
 
 ### Sortear times (só admin)
+- **Time Vermelho** (🔴) e **Time Azul** (🔵) — internamente ainda são `timeA`/`timeB`.
+- **Presentes = confirmados:** a tela já abre com quem marcou **"Vou"** selecionado (sem re-selecionar na mão).
 - Distribui por **overall**, separando goleiros.
-- **Variado e sem repetir:** guarda as combinações já sorteadas (persistido em `sorteioHist`) e só repete depois de esgotar as equilibradas.
+- **Variado e sem repetir:** guarda as combinações já sorteadas (`sorteioHist`) e só repete depois de esgotar as equilibradas.
+- **Times persistem:** o sorteio fica salvo (`sorteioAtual`) e continua aparecendo até um novo sorteio.
+- **Botão "pesos ocultos / visíveis"** (começa OCULTO): esconde TODOS os overalls da tela (lista, totais, diferença → "times sorteados ✓", números dos cartões) para tirar print sem vazar nota. A barra colorida continua.
 
 ### Partidas
-- Registrar: times A/B, placar, gols/assistências por jogador, craque (MVP).
+- Registrar: **Time Vermelho** × **Time Azul**, placar, gols/assistências por jogador, craque (MVP).
 - **Avaliação do sorteio:** "os times ficaram parelhos?" + observação (fica no histórico).
 
 ### Financeiro
@@ -191,8 +199,15 @@ Fórmula de pontos: `3·vitória + empate + 2·gol + assistência + 3·craque`.
 - **Caixa** editável (saldo e mensalidade), lançamentos manuais (com apagar).
 - **PIX** por jogador (ver seção 8).
 
-### Presença (próximo jogo)
-RSVP Vou / Dúvida / Fora.
+### Presença (próximo jogo) — fluxo integrado
+- **Confirmação self-service:** cada jogador (com ficha) confirma a **própria** presença — **Vou / Dúvida / Fora** — no card "Sua confirmação" (via RPC `set_my_rsvp`, validado no servidor). Admin também pode marcar qualquer um.
+- **Fechar chamada (admin)** faz tudo de uma vez:
+  1. lança as **multas** (falta/atraso);
+  2. **sorteia os times** de quem veio (salvo em `sorteioAtual`, persiste);
+  3. registra a **chamada no histórico** (`chamadas`: data + contagem de confirmações);
+  4. **avança para a próxima quinta** (`nextThursday()`) e **zera as confirmações**.
+- **Histórico de chamadas:** seção abaixo das Confirmações, jogo a jogo (data · X vou · Y dúvida · Z fora · quantos vieram).
+- **Recorrência:** como é toda quinta, o app já reabre a próxima automaticamente ao fechar a chamada.
 
 ---
 
