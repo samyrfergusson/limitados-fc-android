@@ -4,7 +4,7 @@ import {
   Star, Crown, Shield, ClipboardList, Target, Copy, Check, Trash2,
   Power, ArrowLeftRight, Goal, Handshake, TrendingUp,
   CalendarCheck, AlertTriangle, ThumbsUp, ThumbsDown, HelpCircle,
-  LogOut, Mail, ShieldCheck, Eye, Download,
+  LogOut, Mail, ShieldCheck, Eye, EyeOff, Download,
 } from "lucide-react";
 import { supabase, fetchData, pushData, subscribeData, isAdminEmail, selfRegister, setMyX1, criarCobrancaPix, isPresidentEmail, setEstrela, setMyRsvp } from "./supabase";
 
@@ -1299,9 +1299,9 @@ function Partidas({ data, update, stats }) {
                 <IconBtn onClick={() => del(m)}><Trash2 size={13} color={T.red} /></IconBtn>
               </div>
               <div className="flex items-center justify-center gap-4" style={{ margin: "10px 0" }}>
-                <span style={{ ...display, fontSize: 22, color: T.gold }}>Time A</span>
+                <span style={{ ...display, fontSize: 22, color: T.red }}>Time Vermelho</span>
                 <span style={{ ...display, fontSize: 40, color: T.bone }}>{m.placarA} <span style={{ color: T.muted }}>×</span> {m.placarB}</span>
-                <span style={{ ...display, fontSize: 22, color: T.blue }}>Time B</span>
+                <span style={{ ...display, fontSize: 22, color: T.blue }}>Time Azul</span>
               </div>
               {m.craque && <div style={{ textAlign: "center", ...mono, fontSize: 11, color: T.gold }}><Star size={11} style={{ display: "inline" }} /> Craque: {byId(m.craque)?.apelido}</div>}
               {golScorers.length > 0 && (
@@ -1356,22 +1356,22 @@ function MatchForm({ data, onClose, onSave }) {
         <Field label="Data"><input type="date" style={inputStyle} value={dataJogo} onChange={(e) => setDataJogo(e.target.value)} /></Field>
         <GhostBtn onClick={autoBalance}><Shuffle size={14} /> Sortear times equilibrados</GhostBtn>
       </div>
-      <div style={{ ...mono, fontSize: 11, color: T.muted, marginBottom: 6 }}>Escolha os presentes e o time (A/B):</div>
+      <div style={{ ...mono, fontSize: 11, color: T.muted, marginBottom: 6 }}>Escolha os presentes e o time (Vermelho/Azul):</div>
       <div style={{ maxHeight: 220, overflowY: "auto", border: `1px solid ${T.line}`, borderRadius: 10, padding: 8, marginBottom: 12 }}>
         {active.map((p) => (
           <div key={p.id} className="flex items-center gap-2" style={{ padding: "4px 2px" }}>
             <span style={{ flex: 1, fontSize: 13 }}>{p.apelido} <span style={{ ...mono, fontSize: 10, color: T.muted }}>({p.overall})</span></span>
-            <button onClick={() => setT(p.id, "A")} style={teamBtn(team[p.id] === "A", T.gold)}>A</button>
-            <button onClick={() => setT(p.id, "B")} style={teamBtn(team[p.id] === "B", T.blue)}>B</button>
+            <button onClick={() => setT(p.id, "A")} title="Time Vermelho" style={teamBtn(team[p.id] === "A", T.red)}>🔴</button>
+            <button onClick={() => setT(p.id, "B")} title="Time Azul" style={teamBtn(team[p.id] === "B", T.blue)}>🔵</button>
           </div>
         ))}
       </div>
       <div className="flex items-center justify-center gap-3" style={{ marginBottom: 12 }}>
-        <span style={{ ...display, fontSize: 18, color: T.gold }}>A</span>
+        <span style={{ ...display, fontSize: 18, color: T.red }}>Vermelho</span>
         <input type="number" style={{ ...inputStyle, width: 64, textAlign: "center", ...mono, fontSize: 20 }} value={placarA} onChange={(e) => setA(e.target.value)} />
         <span style={{ color: T.muted }}>×</span>
         <input type="number" style={{ ...inputStyle, width: 64, textAlign: "center", ...mono, fontSize: 20 }} value={placarB} onChange={(e) => setB(e.target.value)} />
-        <span style={{ ...display, fontSize: 18, color: T.blue }}>B</span>
+        <span style={{ ...display, fontSize: 18, color: T.blue }}>Azul</span>
       </div>
       {present.length > 0 && (
         <>
@@ -1379,7 +1379,7 @@ function MatchForm({ data, onClose, onSave }) {
           <div style={{ maxHeight: 160, overflowY: "auto", marginBottom: 12 }}>
             {present.map((p) => (
               <div key={p.id} className="flex items-center gap-2" style={{ padding: "5px 0", borderBottom: `1px solid ${T.line}44` }}>
-                <span style={{ flex: 1, fontSize: 13, color: team[p.id] === "A" ? T.gold : T.blue }}>{p.apelido}</span>
+                <span style={{ flex: 1, fontSize: 13, color: team[p.id] === "A" ? T.red : T.blue }}>{p.apelido}</span>
                 <span style={{ ...mono, fontSize: 10, color: T.muted }}>G</span>
                 <Stepper value={gols[p.id] || 0} onChange={(v) => setGols((x) => ({ ...x, [p.id]: v }))} color={T.red} />
                 <span style={{ ...mono, fontSize: 10, color: T.muted }}>A</span>
@@ -1406,7 +1406,7 @@ function MatchForm({ data, onClose, onSave }) {
           </select>
         </Field>
         <Field label="Observação sobre a escolha dos times">
-          <input style={inputStyle} placeholder="ex: time A dominou o meio-campo" value={obs} onChange={(e) => setObs(e.target.value)} />
+          <input style={inputStyle} placeholder="ex: time Vermelho dominou o meio-campo" value={obs} onChange={(e) => setObs(e.target.value)} />
         </Field>
       </div>
       <PrimaryBtn onClick={save} full>Salvar partida</PrimaryBtn>
@@ -1422,6 +1422,7 @@ function Sortear({ data, update }) {
   const [sel, setSel] = useState(() => new Set(active.slice(0, 10).map((p) => p.id)));
   const [teams, setTeams] = useState(null);
   const [ciclo, setCiclo] = useState(false); // avisa quando reiniciou o ciclo
+  const [pesosVisiveis, setPesosVisiveis] = useState(false); // começa OCULTO (print p/ grupo)
   const selKey = [...sel].sort().join(",");
   // Histórico persiste no Supabase (data.sorteioHist), por conjunto de presentes.
   const used = new Set(data.sorteioHist?.[selKey] || []);
@@ -1445,7 +1446,18 @@ function Sortear({ data, update }) {
   const maxT = teams ? Math.max(teams[0].total, teams[1].total, 1) : 1;
 
   return (
-    <div className="grid gap-4" style={{ gridTemplateColumns: "minmax(260px,1fr) 2fr" }}>
+    <div>
+      <div className="flex items-center justify-between flex-wrap gap-2" style={{ marginBottom: 12 }}>
+        <span style={{ ...mono, fontSize: 11, color: T.muted }}>Dica: mantenha os pesos ocultos ao tirar print para o grupo.</span>
+        <button onClick={() => setPesosVisiveis((v) => !v)} className="flex items-center gap-2" style={{
+          ...mono, fontSize: 11, fontWeight: 700, borderRadius: 8, padding: "6px 12px",
+          color: pesosVisiveis ? T.turf : T.muted, border: `1px solid ${pesosVisiveis ? T.turf : T.line}`,
+          background: pesosVisiveis ? T.turf + "12" : "transparent",
+        }}>
+          {pesosVisiveis ? <Eye size={13} /> : <EyeOff size={13} />} {pesosVisiveis ? "pesos visíveis" : "pesos ocultos"}
+        </button>
+      </div>
+      <div className="grid gap-4" style={{ gridTemplateColumns: "minmax(260px,1fr) 2fr" }}>
       <Card style={{ padding: 16 }}>
         <SectionTitle Icon={Users} color={T.turf}>Presentes ({sel.size})</SectionTitle>
         <div style={{ maxHeight: 380, overflowY: "auto" }}>
@@ -1459,7 +1471,7 @@ function Sortear({ data, update }) {
               </div>
               <span style={{ flex: 1, fontSize: 13 }}>{p.apelido}</span>
               <Pill color={POS[p.posicao]}>{p.posicao}</Pill>
-              {admin && <span style={{ ...mono, fontSize: 12, color: T.gold, width: 22, textAlign: "right" }}>{p.overall}</span>}
+              {pesosVisiveis && <span style={{ ...mono, fontSize: 12, color: T.gold, width: 22, textAlign: "right" }}>{p.overall}</span>}
             </button>
           ))}
         </div>
@@ -1484,25 +1496,27 @@ function Sortear({ data, update }) {
         {teams && (
           <>
             <Card style={{ padding: 14, marginBottom: 14 }}>
-              <div className="flex items-center justify-between" style={{ marginBottom: 8, ...mono, fontSize: 11, color: T.muted }}>
-                <span>FORÇA TIME A: <b style={{ color: T.gold }}>{teams[0].total}</b></span>
-                <span style={{ color: diff <= 3 ? T.turf : diff <= 8 ? T.amber : T.red }}>diferença: {diff} {diff <= 3 ? "· equilibrado ✓" : ""}</span>
-                <span>FORÇA TIME B: <b style={{ color: T.blue }}>{teams[1].total}</b></span>
+              <div className="flex items-center justify-between flex-wrap gap-1" style={{ marginBottom: 8, ...mono, fontSize: 11 }}>
+                <span style={{ color: T.red, fontWeight: 700 }}>TIME VERMELHO{pesosVisiveis ? `: ${teams[0].total}` : ""}</span>
+                <span style={{ color: pesosVisiveis ? (diff <= 3 ? T.turf : diff <= 8 ? T.amber : T.red) : T.turf }}>
+                  {pesosVisiveis ? `diferença: ${diff}${diff <= 3 ? " · equilibrado ✓" : ""}` : "times sorteados ✓"}
+                </span>
+                <span style={{ color: T.blue, fontWeight: 700 }}>TIME AZUL{pesosVisiveis ? `: ${teams[1].total}` : ""}</span>
               </div>
               <div className="flex gap-1" style={{ height: 10 }}>
-                <div style={{ flex: teams[0].total, background: T.gold, borderRadius: "6px 0 0 6px" }} />
+                <div style={{ flex: teams[0].total, background: T.red, borderRadius: "6px 0 0 6px" }} />
                 <div style={{ flex: teams[1].total, background: T.blue, borderRadius: "0 6px 6px 0" }} />
               </div>
             </Card>
             <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
-              {[["Time A", T.gold, teams[0]], ["Time B", T.blue, teams[1]]].map(([name, color, t]) => (
+              {[["Time Vermelho", T.red, teams[0]], ["Time Azul", T.blue, teams[1]]].map(([name, color, t]) => (
                 <Card key={name} style={{ padding: 14, borderColor: color + "55" }}>
                   <div style={{ ...display, fontSize: 24, color, marginBottom: 10 }}>{name}</div>
                   {t.players.map((p) => (
                     <div key={p.id} className="flex items-center gap-2" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}44` }}>
                       <Jersey p={p} size={30} />
                       <span style={{ flex: 1, fontSize: 13 }}>{p.apelido}</span>
-                      {admin && <span style={{ ...mono, fontSize: 13, color }}>{p.overall}</span>}
+                      {pesosVisiveis && <span style={{ ...mono, fontSize: 13, color }}>{p.overall}</span>}
                     </div>
                   ))}
                 </Card>
@@ -1510,6 +1524,7 @@ function Sortear({ data, update }) {
             </div>
           </>
         )}
+      </div>
       </div>
     </div>
   );
