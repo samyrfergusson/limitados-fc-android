@@ -50,6 +50,7 @@ const CARGO = {
   admin: { label: "Admin", color: T.turf, Icon: ClipboardList },
   mensalista: { label: "Mensalista", color: T.muted, Icon: Users },
   diarista: { label: "Diarista", color: T.line, Icon: Users },
+  convidado: { label: "Convidado", color: T.amber, Icon: Handshake },
 };
 
 function isBirthdayThisWeek(aniv) {
@@ -837,7 +838,7 @@ function PlayerForm({ player, onClose, onSave, embed, heading, submitLabel }) {
             {Object.entries(CARGO)
               // mensalista/diarista sempre; o cargo atual (evita apagar sem querer);
               // cargos elevados (presidente/vice/admin) SÓ o presidente promove
-              .filter(([k]) => k === "mensalista" || k === "diarista" || k === f.cargo || (!embed && president))
+              .filter(([k]) => k === "mensalista" || k === "diarista" || k === "convidado" || k === f.cargo || (!embed && president))
               .map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
         </Field>
