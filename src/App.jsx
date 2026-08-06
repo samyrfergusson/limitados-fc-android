@@ -93,10 +93,11 @@ function balanceTeams(players) {
   const gks = players.filter((p) => p.posicao === "GOL").sort((a, b) => b.overall - a.overall);
   const field = players.filter((p) => p.posicao !== "GOL").sort((a, b) => b.overall - a.overall);
   const teams = [{ players: [], total: 0 }, { players: [], total: 0 }];
-  gks.forEach((g, i) => { teams[i % 2].players.push(g); teams[i % 2].total += g.overall; });
-  field.forEach((p) => {
-    const t = teams[0].total <= teams[1].total ? teams[0] : teams[1];
-    t.players.push(p); t.total += p.overall;
+  const put = (p, t) => { t.players.push(p); t.total += p.overall || 0; };
+  // 1 goleiro TITULAR por time; goleiro que sobrar entra na linha.
+  gks.slice(0, 2).forEach((g, i) => put(g, teams[i]));
+  [...gks.slice(2), ...field].sort((a, b) => b.overall - a.overall).forEach((p) => {
+    put(p, teams[0].total <= teams[1].total ? teams[0] : teams[1]);
   });
   return teams;
 }
@@ -124,10 +125,11 @@ function balanceTeamsVaried(players, usedKeys) {
   const build = () => {
     const teams = [{ players: [], total: 0 }, { players: [], total: 0 }];
     const put = (p, t) => { t.players.push(p); t.total += p.overall || 0; };
-    // goleiros divididos igualmente
-    shuffle(gks).forEach((g) => put(g, teams[0].players.length <= teams[1].players.length ? teams[0] : teams[1]));
-    // linha: ordem embaralhada; mantém tamanhos parelhos e joga no time mais fraco
-    shuffle(field).forEach((p) => {
+    // 1 goleiro TITULAR por time; goleiro que sobrar joga na linha.
+    const gksSh = shuffle(gks);
+    gksSh.slice(0, 2).forEach((g, i) => put(g, teams[i]));
+    // linha (inclui goleiros extras): ordem embaralhada; mantém tamanhos parelhos e joga no time mais fraco
+    shuffle([...field, ...gksSh.slice(2)]).forEach((p) => {
       const sizeDiff = teams[0].players.length - teams[1].players.length;
       const t = sizeDiff >= 1 ? teams[1] : sizeDiff <= -1 ? teams[0]
         : (teams[0].total <= teams[1].total ? teams[0] : teams[1]);
