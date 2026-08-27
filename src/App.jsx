@@ -684,6 +684,8 @@ function Elenco({ data, update }) {
   const isAdmin = useIsAdmin();
   const [edit, setEdit] = useState(null); // player or "new"
   const active = data.players.filter((p) => p.status === "ativo").sort((a, b) => b.overall - a.overall);
+  const elencoFixo = active.filter((p) => p.cargo !== "convidado");
+  const convidados = active.filter((p) => p.cargo === "convidado");
   const inactive = data.players.filter((p) => p.status !== "ativo");
 
   const save = (pl) => update((d) => {
@@ -698,12 +700,23 @@ function Elenco({ data, update }) {
   return (
     <div>
       <div className="flex items-center justify-between" style={{ marginBottom: 14 }}>
-        <SectionTitle Icon={Users} color={T.turf}>Elenco · {active.length} ativos</SectionTitle>
+        <SectionTitle Icon={Users} color={T.turf}>Elenco · {elencoFixo.length}</SectionTitle>
         {isAdmin && <PrimaryBtn onClick={() => setEdit("new")}><Plus size={16} /> Novo jogador</PrimaryBtn>}
       </div>
       <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))" }}>
-        {active.map((p) => <PlayerCard key={p.id} p={p} onEdit={() => setEdit(p)} onToggle={() => toggle(p)} onDel={() => del(p)} />)}
+        {elencoFixo.map((p) => <PlayerCard key={p.id} p={p} onEdit={() => setEdit(p)} onToggle={() => toggle(p)} onDel={() => del(p)} />)}
       </div>
+      {convidados.length > 0 && (
+        <>
+          <div className="flex items-center gap-2" style={{ margin: "22px 0 10px" }}>
+            <Handshake size={18} color={T.amber} />
+            <h3 style={{ ...display, fontSize: 22, color: T.amber }}>Convidados · {convidados.length}</h3>
+          </div>
+          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))" }}>
+            {convidados.map((p) => <PlayerCard key={p.id} p={p} onEdit={() => setEdit(p)} onToggle={() => toggle(p)} onDel={() => del(p)} />)}
+          </div>
+        </>
+      )}
       {inactive.length > 0 && (
         <>
           <div style={{ ...display, fontSize: 20, color: T.muted, margin: "22px 0 10px" }}>Ex-integrantes / afastados</div>
