@@ -906,6 +906,19 @@ function Presenca({ data, update }) {
     setRsvpBusy(false);
     if (!res.ok) setRsvpErr(res.error || "Não foi possível confirmar.");
   };
+  // Fechar chamada (ANTES do jogo): sorteia os times com quem confirmou "Vou".
+  const [msg, setMsg] = useState("");
+  const fecharESortear = () => {
+    const confirmados = active.filter((p) => jogo.rsvp[p.id]?.s === "vou");
+    if (confirmados.length < 2) { setMsg("Confirmados insuficientes para sortear."); setTimeout(() => setMsg(""), 4000); return; }
+    update((d) => {
+      const conf = active.filter((p) => d.proximoJogo.rsvp[p.id]?.s === "vou");
+      const [tv, ta] = balanceTeams(conf);
+      return { ...d, sorteioAtual: { data: d.proximoJogo.data, timeVermelho: tv.players.map((p) => p.id), timeAzul: ta.players.map((p) => p.id) } };
+    });
+    setMsg("Times sorteados! Veja na aba “Sortear times”.");
+    setTimeout(() => setMsg(""), 4000);
+  };
   const setJogo = (k, v) => update((d) => ({ ...d, proximoJogo: { ...d.proximoJogo, [k]: v } }));
   const setRegra = (k, v) => update((d) => ({ ...d, regras: { ...d.regras, [k]: +v || 0 } }));
   const setRsvp = (id, s) => update((d) => {
@@ -990,10 +1003,16 @@ function Presenca({ data, update }) {
         <div style={{ ...mono, fontSize: 10, color: T.muted, marginTop: 8 }}>Quem marca “Fora” não paga (avisou). Confirmou e não veio = falta. Chegou atrasado = atraso. As multas caem direto no Financeiro.</div>
       </Card>
 
-      <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
+      <div className="flex items-center justify-between flex-wrap gap-2" style={{ marginBottom: 12 }}>
         <SectionTitle Icon={CalendarCheck} color={T.turf}>Confirmações</SectionTitle>
-        {isAdmin && <PrimaryBtn onClick={() => setClosing(true)}><ClipboardList size={16} /> Fechar chamada</PrimaryBtn>}
+        {isAdmin && (
+          <div className="flex gap-2 flex-wrap">
+            <GhostBtn onClick={fecharESortear}><Shuffle size={14} /> Fechar chamada e sortear</GhostBtn>
+            <PrimaryBtn onClick={() => setClosing(true)}><ClipboardList size={16} /> Encerrar rodada</PrimaryBtn>
+          </div>
+        )}
       </div>
+      {msg && <div style={{ ...mono, fontSize: 11, color: T.turf, marginBottom: 10 }}>{msg}</div>}
       <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))" }}>
         {cols.map(([name, color, arr]) => (arr.length > 0 || name === "Confirmados") && (
           <Card key={name} style={{ padding: 14 }}>
@@ -1048,30 +1067,25 @@ function FecharChamada({ data, update, onClose }) {
       if (marks[p.id] === "falta") novas.push({ id: uid(), playerId: p.id, tipo: "falta", valor: d.regras.multaFalta, data: jogo.data, pago: false });
       if (marks[p.id] === "atraso") novas.push({ id: uid(), playerId: p.id, tipo: "atraso", valor: d.regras.multaAtraso, data: jogo.data, pago: false });
     });
-    // Sorteia os que vieram (presente/atraso) → times persistem até o próximo sorteio.
-    const vieram = expected.filter((p) => marks[p.id] !== "falta");
-    const novoSorteio = vieram.length >= 2
-      ? (() => { const [tv, ta] = balanceTeams(vieram); return { data: jogo.data, timeVermelho: tv.players.map((p) => p.id), timeAzul: ta.players.map((p) => p.id) }; })()
-      : d.sorteioAtual;
     // Registra a chamada no histórico (acompanhamento jogo a jogo).
+    const vieram = expected.filter((p) => marks[p.id] !== "falta").length;
     const rsvp = d.proximoJogo.rsvp || {};
     const cont = (s) => active.filter((p) => rsvp[p.id]?.s === s).length;
-    const chamada = { id: uid(), data: jogo.data, vou: cont("vou"), duvida: cont("duvida"), fora: cont("fora"), presentes: vieram.length };
+    const chamada = { id: uid(), data: jogo.data, vou: cont("vou"), duvida: cont("duvida"), fora: cont("fora"), presentes: vieram };
     return {
       ...d,
       multas: [...kept, ...novas],
       chamadas: [chamada, ...(d.chamadas || [])],
-      sorteioAtual: novoSorteio,
-      // Avança para a próxima quinta e reinicia as confirmações.
+      // Avança para a próxima quinta e reinicia as confirmações (o sorteio foi feito ao fechar a chamada).
       proximoJogo: { ...d.proximoJogo, data: nextThursday(), rsvp: {} },
     };
   });
   const opt = [["presente", "Veio", T.turf], ["atraso", "Atrasou", T.amber], ["falta", "Faltou", T.red]];
   return (
-    <Modal title="Fechar chamada" onClose={onClose} wide>
+    <Modal title="Encerrar rodada · presenças" onClose={onClose} wide>
       <div style={{ ...mono, fontSize: 11, color: T.muted, marginBottom: 10 }}>
-        Marque quem veio. Falta {brl(data.regras.multaFalta)} · atraso {brl(data.regras.multaAtraso)}. Quem marcou “Fora” não entra na lista.
-        <br />Ao salvar: lança as multas, <b style={{ color: T.bone }}>sorteia os times de quem veio</b> e já abre a <b style={{ color: T.bone }}>próxima quinta</b> (zerando as confirmações).
+        Faça isto <b style={{ color: T.bone }}>depois do jogo</b>. Marque quem veio. Falta {brl(data.regras.multaFalta)} · atraso {brl(data.regras.multaAtraso)}. Quem marcou “Fora” não entra na lista.
+        <br />Ao salvar: lança as multas e já abre a <b style={{ color: T.bone }}>próxima quinta</b> (zerando as confirmações).
       </div>
       <div style={{ maxHeight: 320, overflowY: "auto" }}>
         {expected.map((p) => (
@@ -1096,7 +1110,7 @@ function FecharChamada({ data, update, onClose }) {
         <span style={{ ...mono, fontSize: 12, color: T.muted }}>Multas a gerar: <b style={{ color: preview > 0 ? T.amber : T.turf }}>{brl(preview)}</b></span>
       </div>
       <div className="flex gap-2" style={{ marginTop: 12 }}>
-        <PrimaryBtn onClick={() => { salvar(); onClose(); }} full>Fechar chamada · sortear e abrir próxima quinta</PrimaryBtn>
+        <PrimaryBtn onClick={() => { salvar(); onClose(); }} full>Lançar presenças e abrir próxima quinta</PrimaryBtn>
         <GhostBtn onClick={onClose}>Cancelar</GhostBtn>
       </div>
     </Modal>
