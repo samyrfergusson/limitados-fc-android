@@ -123,8 +123,8 @@ Ficha do jogador (`players[]`):
 {
   "id", "nome", "apelido", "numero", "posicao": "GOL|ZAG|MEI|ATA",
   "overall",                 // "peso" (visível só p/ admin)
-  "cargo": "presidente|suplente|admin|mensalista|diarista",
-  "mensalista": true,        // tipo de pagamento
+  "cargo": "presidente|suplente|admin|mensalista|convidado",  // sem "diarista" (é no Tipo)
+  "mensalista": true,        // Tipo de pagamento (true=mensalista, false=diarista)
   "status": "ativo|inativo",
   "dataEntrada", "dataSaida", "aniversario",
   "email",                   // vincula ao login (auto-cadastro)
@@ -173,9 +173,11 @@ Cada cobrança PIX gerada (para conciliar o pagamento). Só as Edge Functions ac
 ### Elenco
 - Fichas com posição, número, cargo, aniversário e **6 habilidades**: VEL, FIN, PAS, DEF, FIS, **X1** (drible, 1–99).
 - **Overall (peso):** visível **só para admin** (evita briga).
-- **Auto-cadastro:** no 1º acesso, o jogador (não-admin, sem ficha) preenche a própria (cargo limitado a Mensalista/Diarista; sem overall).
+- **Auto-cadastro:** no 1º acesso, o jogador (não-admin, sem ficha) preenche a própria (cargo limitado a Mensalista/Convidado; sem overall).
 - **Ajuste do X1:** o jogador pode alterar o próprio X1 **uma única vez**, depois trava.
 - **⭐ Estrela da Patota:** badge de honraria mostrado abaixo do Overall no card. **Visível para todos**; só o **presidente** classifica/promove (botão exclusivo dele, validado no servidor).
+- **Cargo:** Presidente / Vice / Admin / Mensalista / **Convidado** (o "Diarista" saiu do cargo — é o campo **Tipo**). Cargos elevados só o presidente define.
+- **Seções separadas:** a lista mostra **Elenco** (membros fixos), **Convidados** (cargo Convidado, em âmbar) e **Ex-integrantes** (inativos) em blocos distintos.
 
 ### Destaques / Rankings
 Artilheiros, garçom (assistências), ranking por pontos, craque da última, goleiros (gols sofridos).
@@ -184,12 +186,13 @@ Fórmula de pontos: `3·vitória + empate + 2·gol + assistência + 3·craque`.
 ### Sortear times (só admin)
 - **Time Vermelho** (🔴) e **Time Azul** (🔵) — internamente ainda são `timeA`/`timeB`.
 - **Presentes = confirmados:** a tela já abre com quem marcou **"Vou"** selecionado (sem re-selecionar na mão).
-- Distribui por **overall**, separando goleiros.
+- Distribui por **overall**, separando goleiros: **1 goleiro titular por time**; goleiro que sobra (3º+) joga na **linha**.
 - **Variado e sem repetir:** guarda as combinações já sorteadas (`sorteioHist`) e só repete depois de esgotar as equilibradas.
 - **Times persistem:** o sorteio fica salvo (`sorteioAtual`) e continua aparecendo até um novo sorteio.
 - **Botão "pesos ocultos / visíveis"** (começa OCULTO): esconde TODOS os overalls da tela (lista, totais, diferença → "times sorteados ✓", números dos cartões) para tirar print sem vazar nota. A barra colorida continua.
 
 ### Partidas
+- **Nova partida já vem preenchida** com os times do último sorteio (`sorteioAtual`): Vermelho = A, Azul = B, e a data. É só lançar placar/gols.
 - Registrar: **Time Vermelho** × **Time Azul**, placar, gols/assistências por jogador, craque (MVP).
 - **Avaliação do sorteio:** "os times ficaram parelhos?" + observação (fica no histórico).
 
@@ -199,15 +202,12 @@ Fórmula de pontos: `3·vitória + empate + 2·gol + assistência + 3·craque`.
 - **Caixa** editável (saldo e mensalidade), lançamentos manuais (com apagar).
 - **PIX** por jogador (ver seção 8).
 
-### Presença (próximo jogo) — fluxo integrado
+### Presença (próximo jogo) — fluxo em 2 passos
 - **Confirmação self-service:** cada jogador (com ficha) confirma a **própria** presença — **Vou / Dúvida / Fora** — no card "Sua confirmação" (via RPC `set_my_rsvp`, validado no servidor). Admin também pode marcar qualquer um.
-- **Fechar chamada (admin)** faz tudo de uma vez:
-  1. lança as **multas** (falta/atraso);
-  2. **sorteia os times** de quem veio (salvo em `sorteioAtual`, persiste);
-  3. registra a **chamada no histórico** (`chamadas`: data + contagem de confirmações);
-  4. **avança para a próxima quinta** (`nextThursday()`) e **zera as confirmações**.
+- **Passo 1 — "Fechar chamada e sortear" (ANTES do jogo, admin):** sorteia os times com quem confirmou **"Vou"** e salva em `sorteioAtual` (aparece no Sortear e no Nova partida). Não avança a semana.
+- **Passo 2 — "Encerrar rodada" (DEPOIS do jogo, admin):** marca **Veio / Atrasou / Faltou** → gera as **multas** → registra no **histórico** (`chamadas`) → **avança para a próxima quinta** (`nextThursday()`) e **zera as confirmações**.
 - **Histórico de chamadas:** seção abaixo das Confirmações, jogo a jogo (data · X vou · Y dúvida · Z fora · quantos vieram).
-- **Recorrência:** como é toda quinta, o app já reabre a próxima automaticamente ao fechar a chamada.
+- **Recorrência:** como é toda quinta, ao encerrar a rodada o app já reabre a próxima automaticamente.
 
 ---
 
