@@ -1129,22 +1129,40 @@ function Financeiro({ data, update }) {
   const cur = monthKey();
   const cycle = (id, mk) => update((d) => {
     const order = { undefined: "pago", pago: "pendente", pendente: "atrasado", atrasado: "pago" };
-    const c = (d.payments[id] || {})[mk];
-    return { ...d, payments: { ...d.payments, [id]: { ...(d.payments[id] || {}), [mk]: order[c] } } };
+    const prev = (d.payments[id] || {})[mk];
+    const next = order[prev];
+    const ref = `mens:${id}:${mk}`;                 // liga o lançamento à mensalidade (para reverter)
+    const wasPago = prev === "pago", isPago = next === "pago";
+    let caixa = d.club.caixa, lancamentos = d.lancamentos;
+    if (isPago && !wasPago) {                        // marcou PAGO → entra no caixa
+      const pl = d.players.find((p) => p.id === id);
+      caixa += d.club.mensalidade;
+      lancamentos = [{ id: uid(), data: new Date().toISOString().slice(0, 10), desc: `Mensalidade ${monthLabel(mk)} · ${pl?.apelido || ""}`, tipo: "receita", valor: d.club.mensalidade, ref }, ...lancamentos];
+    } else if (!isPago && wasPago) {                 // saiu de PAGO → desconta do caixa
+      const l = lancamentos.find((x) => x.ref === ref);
+      caixa -= l ? l.valor : d.club.mensalidade;
+      lancamentos = lancamentos.filter((x) => x.ref !== ref);
+    }
+    return { ...d, payments: { ...d.payments, [id]: { ...(d.payments[id] || {}), [mk]: next } }, club: { ...d.club, caixa }, lancamentos };
   });
   const statusColor = { pago: T.turf, pendente: T.amber, atrasado: T.red };
   const addLanc = (l) => update((d) => ({ ...d, lancamentos: [{ ...l, id: uid() }, ...d.lancamentos], club: { ...d.club, caixa: d.club.caixa + (l.tipo === "receita" ? l.valor : -l.valor) } }));
   const delLanc = (l) => { if (!confirm(`Remover "${l.desc}" (${brl(l.valor)})?`)) return; update((d) => ({ ...d, lancamentos: d.lancamentos.filter((x) => x.id !== l.id), club: { ...d.club, caixa: d.club.caixa - (l.tipo === "receita" ? l.valor : -l.valor) } })); };
   const emDia = mensalistas.filter((p) => (data.payments[p.id] || {})[cur] === "pago").length;
-  const unpaid = (pid) => data.multas.filter((m) => m.playerId === pid && !m.pago);
-  const totalMultas = data.multas.filter((m) => !m.pago).reduce((s, m) => s + m.valor, 0);
+  const unpaid = (pid) => data.multas.filter((m) => m.playerId === pid && !m.pago && !m.cancelado);
+  const totalMultas = data.multas.filter((m) => !m.pago && !m.cancelado).reduce((s, m) => s + m.valor, 0);
   const withMultas = data.players.filter((p) => unpaid(p.id).length > 0);
   const payMulta = (mid) => update((d) => {
-    const m = d.multas.find((x) => x.id === mid); if (!m || m.pago) return d;
+    const m = d.multas.find((x) => x.id === mid); if (!m || m.pago || m.cancelado) return d;
     return { ...d, multas: d.multas.map((x) => (x.id === mid ? { ...x, pago: true } : x)),
       club: { ...d.club, caixa: d.club.caixa + m.valor },
       lancamentos: [{ id: uid(), data: new Date().toISOString().slice(0, 10), desc: `Multa (${m.tipo}) recebida`, tipo: "receita", valor: m.valor }, ...d.lancamentos] };
   });
+  // Cancela/perdoa as multas em aberto de um jogador (zera sem entrar no caixa; mantém o registro).
+  const cancelMultas = (pid) => {
+    if (!confirm("Cancelar (perdoar) as multas em aberto deste jogador? Elas somem da cobrança e NÃO entram no caixa.")) return;
+    update((d) => ({ ...d, multas: d.multas.map((m) => (m.playerId === pid && !m.pago && !m.cancelado ? { ...m, cancelado: true } : m)) }));
+  };
   const buildItems = (p) => {
     const items = [];
     const st = (data.payments[p.id] || {})[cur];
@@ -1210,6 +1228,7 @@ function Financeiro({ data, update }) {
               <span style={{ ...mono, fontWeight: 700, color: T.amber }}>{brl(tot)}</span>
               <button onClick={() => ms.forEach((m) => payMulta(m.id))} style={smallBtn(T.turf)}><Check size={11} /> Pagar</button>
               <button onClick={() => setPix(p)} style={smallBtn(T.gold)}><Copy size={11} /> PIX</button>
+              <button onClick={() => cancelMultas(p.id)} style={smallBtn(T.red)}><X size={11} /> Cancelar</button>
             </div>
           );
         })}
