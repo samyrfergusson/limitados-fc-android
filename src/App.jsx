@@ -343,6 +343,9 @@ export default function App() {
   }
 
   const stats = computeStats(data);
+  // Presidente/Vice vêm do cargo no elenco (fallback: valor antigo do clube).
+  const presidenteNome = data.players.find((p) => p.cargo === "presidente")?.apelido || data.club.presidente || "—";
+  const viceNome = data.players.find((p) => p.cargo === "suplente")?.apelido || data.club.vice || "—";
   const tabs = [
     { k: "destaques", label: "Destaques", short: "Destaque", Icon: Trophy },
     { k: "elenco", label: "Elenco", short: "Elenco", Icon: Users },
@@ -385,12 +388,12 @@ export default function App() {
           <div className="flex items-center gap-4" style={{ margin: "0 auto" }}>
             <div style={{ textAlign: "center" }}>
               <div className="flex items-center justify-center gap-1" style={{ ...mono, fontSize: 9, color: T.gold, textTransform: "uppercase", letterSpacing: ".08em" }}><Crown size={11} /> Presidente</div>
-              <div style={{ ...display, fontSize: 24, color: T.bone, lineHeight: 1, marginTop: 2 }}>{data.club.presidente || "Samyr"}</div>
+              <div style={{ ...display, fontSize: 24, color: T.bone, lineHeight: 1, marginTop: 2 }}>{presidenteNome}</div>
             </div>
             <div style={{ width: 1, height: 34, background: T.line }} />
             <div style={{ textAlign: "center" }}>
               <div className="flex items-center justify-center gap-1" style={{ ...mono, fontSize: 9, color: T.blue, textTransform: "uppercase", letterSpacing: ".08em" }}><Shield size={11} /> Vice</div>
-              <div style={{ ...display, fontSize: 24, color: T.bone, lineHeight: 1, marginTop: 2 }}>{data.club.vice || "Marcelo"}</div>
+              <div style={{ ...display, fontSize: 24, color: T.bone, lineHeight: 1, marginTop: 2 }}>{viceNome}</div>
             </div>
           </div>
           <div className="text-right">
