@@ -1151,7 +1151,9 @@ function Financeiro({ data, update }) {
   const emDia = mensalistas.filter((p) => (data.payments[p.id] || {})[cur] === "pago").length;
   const unpaid = (pid) => data.multas.filter((m) => m.playerId === pid && !m.pago && !m.cancelado);
   const totalMultas = data.multas.filter((m) => !m.pago && !m.cancelado).reduce((s, m) => s + m.valor, 0);
-  const withMultas = data.players.filter((p) => unpaid(p.id).length > 0);
+  const openMultas = data.multas.filter((m) => !m.pago && !m.cancelado);
+  // Agrupa por jogador a partir das PRÓPRIAS multas (não some se o jogador sumir do elenco).
+  const multasByPlayer = openMultas.reduce((acc, m) => { (acc[m.playerId] = acc[m.playerId] || []).push(m); return acc; }, {});
   const payMulta = (mid) => update((d) => {
     const m = d.multas.find((x) => x.id === mid); if (!m || m.pago || m.cancelado) return d;
     return { ...d, multas: d.multas.map((x) => (x.id === mid ? { ...x, pago: true } : x)),
@@ -1213,22 +1215,26 @@ function Financeiro({ data, update }) {
 
       <Card style={{ padding: 16, marginBottom: 16, borderColor: T.amber + "44" }}>
         <SectionTitle Icon={AlertTriangle} color={T.amber}>Multas em aberto</SectionTitle>
-        {withMultas.length === 0 && <Empty>Ninguém devendo multa. 👏</Empty>}
-        {withMultas.map((p) => {
-          const ms = unpaid(p.id); const tot = ms.reduce((s, m) => s + m.valor, 0);
+        {Object.keys(multasByPlayer).length === 0 && <Empty>Ninguém devendo multa. 👏</Empty>}
+        {Object.entries(multasByPlayer).map(([pid, ms]) => {
+          const p = data.players.find((x) => x.id === pid);
+          const nome = p ? (p.apelido || p.nome || "—") : "Jogador removido";
+          const tot = ms.reduce((s, m) => s + (m.valor || 0), 0);
           return (
-            <div key={p.id} className="flex items-center gap-2 flex-wrap" style={{ padding: "8px 0", borderBottom: `1px solid ${T.line}55` }}>
-              <Jersey p={p} size={30} />
-              <div style={{ flex: 1, minWidth: 130 }}>
-                <div style={{ fontSize: 13 }}>{p.apelido}</div>
-                <div style={{ ...mono, fontSize: 10, color: T.muted }}>
-                  {ms.map((m) => `${m.tipo} ${new Date(m.data).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`).join(" · ")}
-                </div>
+            <div key={pid} style={{ padding: "10px 0", borderBottom: `1px solid ${T.line}55` }}>
+              <div className="flex items-center gap-2" style={{ marginBottom: 6 }}>
+                {p && <Jersey p={p} size={30} />}
+                <span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{nome}</span>
+                <span style={{ ...mono, fontWeight: 700, color: T.amber }}>{brl(tot)}</span>
               </div>
-              <span style={{ ...mono, fontWeight: 700, color: T.amber }}>{brl(tot)}</span>
-              <button onClick={() => ms.forEach((m) => payMulta(m.id))} style={smallBtn(T.turf)}><Check size={11} /> Pagar</button>
-              <button onClick={() => setPix(p)} style={smallBtn(T.gold)}><Copy size={11} /> PIX</button>
-              <button onClick={() => cancelMultas(p.id)} style={smallBtn(T.red)}><X size={11} /> Cancelar</button>
+              <div style={{ ...mono, fontSize: 11, color: T.muted, marginBottom: 8 }}>
+                {ms.map((m) => `${m.tipo === "falta" ? "Falta" : "Atraso"} ${new Date(m.data + "T12:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} · ${brl(m.valor)}`).join("   ·   ")}
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={() => ms.forEach((m) => payMulta(m.id))} style={smallBtn(T.turf)}><Check size={11} /> Pagar</button>
+                {p && <button onClick={() => setPix(p)} style={smallBtn(T.gold)}><Copy size={11} /> PIX</button>}
+                <button onClick={() => cancelMultas(pid)} style={smallBtn(T.red)}><X size={11} /> Perdoar</button>
+              </div>
             </div>
           );
         })}

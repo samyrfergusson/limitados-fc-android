@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     const competencia = body.competencia ?? new Date().toISOString().slice(0, 7); // YYYY-MM
     const mensalidade = Number(dados.club?.mensalidade ?? 0);
     const jaPago = (dados.payments?.[target.id]?.[competencia]) === "pago";
-    const multas = (dados.multas ?? []).filter((m: any) => m.playerId === target.id && !m.pago);
+    const multas = (dados.multas ?? []).filter((m: any) => m.playerId === target.id && !m.pago && !m.cancelado);
     let valor = 0;
     if (target.mensalista && !jaPago) valor += mensalidade;
     valor += multas.reduce((s: number, m: any) => s + (Number(m.valor) || 0), 0);

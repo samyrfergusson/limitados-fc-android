@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     const payments = { ...(dados.payments ?? {}) };
     payments[playerId] = { ...(payments[playerId] ?? {}), [competencia]: "pago" };
     const multas = (dados.multas ?? []).map((m: any) =>
-      (m.playerId === playerId && !m.pago) ? { ...m, pago: true } : m);
+      (m.playerId === playerId && !m.pago && !m.cancelado) ? { ...m, pago: true } : m);
     const lancamentos = [
       { id: crypto.randomUUID(), data: new Date().toISOString().slice(0, 10),
         desc: `PIX recebido (${competencia})`, tipo: "receita", valor: Number(pay.transaction_amount) },
