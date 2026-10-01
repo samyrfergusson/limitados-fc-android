@@ -344,13 +344,13 @@ export default function App() {
 
   const stats = computeStats(data);
   const tabs = [
-    { k: "destaques", label: "Destaques", Icon: Trophy },
-    { k: "elenco", label: "Elenco", Icon: Users },
-    { k: "presenca", label: "Próximo jogo", Icon: CalendarCheck },
-    { k: "financeiro", label: "Financeiro", Icon: Wallet },
-    { k: "partidas", label: "Partidas", Icon: CalendarDays },
+    { k: "destaques", label: "Destaques", short: "Destaque", Icon: Trophy },
+    { k: "elenco", label: "Elenco", short: "Elenco", Icon: Users },
+    { k: "presenca", label: "Próximo jogo", short: "Jogo", Icon: CalendarCheck },
+    { k: "financeiro", label: "Financeiro", short: "Caixa", Icon: Wallet },
+    { k: "partidas", label: "Partidas", short: "Partidas", Icon: CalendarDays },
     // Sortear é ferramenta da diretoria — só admin vê/usa
-    ...(isAdmin ? [{ k: "sortear", label: "Sortear times", Icon: Shuffle }] : []),
+    ...(isAdmin ? [{ k: "sortear", label: "Sortear times", short: "Sortear", Icon: Shuffle }] : []),
   ];
 
   return (
@@ -398,8 +398,8 @@ export default function App() {
             <div style={{ ...display, fontSize: 26, color: data.club.caixa >= 0 ? T.turf : T.red }}>{brl(data.club.caixa)}</div>
           </div>
         </div>
-        {/* Tabs */}
-        <div style={{ maxWidth: 1040, margin: "0 auto", padding: "0 10px", display: "flex", gap: 4, overflowX: "auto" }}>
+        {/* Tabs (topo — só no desktop; no celular usa a barra de baixo) */}
+        <div className="hidden md:flex" style={{ maxWidth: 1040, margin: "0 auto", padding: "0 10px", gap: 4, overflowX: "auto" }}>
           {tabs.map(({ k, label, Icon }) => (
             <button key={k} onClick={() => setTab(k)} className="flex items-center gap-2" style={{
               padding: "10px 14px", whiteSpace: "nowrap", borderBottom: `2px solid ${tab === k ? T.gold : "transparent"}`,
@@ -409,7 +409,7 @@ export default function App() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1040, margin: "0 auto", padding: 18 }}>
+      <div className="pb-24 md:pb-6" style={{ maxWidth: 1040, margin: "0 auto", paddingTop: 18, paddingLeft: 18, paddingRight: 18 }}>
         {tab === "destaques" && <Destaques data={data} stats={stats} />}
         {tab === "elenco" && <Elenco data={data} update={update} />}
         {tab === "presenca" && <Presenca data={data} update={update} />}
@@ -423,10 +423,30 @@ export default function App() {
       </div>
 
       {notice && (
-        <div style={{ position: "fixed", left: "50%", bottom: 22, transform: "translateX(-50%)", background: T.panel2, color: T.bone, border: `1px solid ${T.amber}`, borderRadius: 10, padding: "10px 16px", fontSize: 13, boxShadow: "0 8px 24px rgba(0,0,0,.4)", zIndex: 80 }}>
+        <div style={{ position: "fixed", left: "50%", bottom: 84, transform: "translateX(-50%)", background: T.panel2, color: T.bone, border: `1px solid ${T.amber}`, borderRadius: 10, padding: "10px 16px", fontSize: 13, boxShadow: "0 8px 24px rgba(0,0,0,.4)", zIndex: 80 }}>
           {notice}
         </div>
       )}
+
+      {/* Navegação inferior fixa — só no celular (padrão de app, fácil de achar) */}
+      <nav className="md:hidden" style={{
+        position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 60,
+        background: T.panel, borderTop: `1px solid ${T.line}`,
+        display: "flex", justifyContent: "space-around",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        boxShadow: "0 -4px 16px rgba(0,0,0,.35)",
+      }}>
+        {tabs.map(({ k, short, Icon }) => (
+          <button key={k} onClick={() => setTab(k)} className="flex flex-col items-center justify-center" style={{
+            flex: 1, padding: "8px 2px", gap: 3, background: "transparent",
+            color: tab === k ? T.gold : T.muted,
+            borderTop: `2px solid ${tab === k ? T.gold : "transparent"}`,
+          }}>
+            <Icon size={20} />
+            <span style={{ ...mono, fontSize: 9, fontWeight: 700 }}>{short}</span>
+          </button>
+        ))}
+      </nav>
     </div>
     </MeCtx.Provider>
     </PresidentCtx.Provider>
