@@ -4,7 +4,7 @@ import {
   Star, Crown, Shield, ClipboardList, Target, Copy, Check, Trash2,
   Power, ArrowLeftRight, Goal, Handshake, TrendingUp,
   CalendarCheck, AlertTriangle, ThumbsUp, ThumbsDown, HelpCircle,
-  LogOut, Mail, ShieldCheck, Eye, EyeOff, Download,
+  LogOut, Mail, ShieldCheck, Eye, EyeOff,
 } from "lucide-react";
 import { supabase, fetchData, pushData, subscribeData, isAdminEmail, selfRegister, setMyX1, criarCobrancaPix, isPresidentEmail, setEstrela, setMyRsvp } from "./supabase";
 
@@ -511,14 +511,6 @@ function Login() {
             {err && <div style={{ color: T.red, fontSize: 12, marginTop: 10 }}>{err}</div>}
             <div style={{ ...mono, fontSize: 10, color: T.muted, marginTop: 14 }}>Sem senha: você recebe um link por e-mail.</div>
           </div>
-        )}
-
-        {!(typeof window !== "undefined" && window.Capacitor?.isNativePlatform?.()) && (
-          <a href="https://github.com/samyrfergusson/limitados-fc-android/releases/download/latest/app-debug.apk"
-            className="flex items-center justify-center gap-2"
-            style={{ marginTop: 16, width: "100%", boxSizing: "border-box", textDecoration: "none", color: T.turf, border: `1px solid ${T.turf}66`, background: T.turf + "12", fontWeight: 700, fontSize: 13, padding: "10px 16px", borderRadius: 10 }}>
-            <Download size={15} /> Baixar app para Android (APK)
-          </a>
         )}
       </div>
     </div>
