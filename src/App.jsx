@@ -1590,7 +1590,7 @@ function Sortear({ data, update }) {
           {pesosVisiveis ? <Eye size={13} /> : <EyeOff size={13} />} {pesosVisiveis ? "pesos visíveis" : "pesos ocultos"}
         </button>
       </div>
-      <div className="grid gap-4" style={{ gridTemplateColumns: "minmax(260px,1fr) 2fr" }}>
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-[minmax(260px,1fr)_2fr]">
       <Card style={{ padding: 16 }}>
         <SectionTitle Icon={Users} color={T.turf}>Presentes ({sel.size})</SectionTitle>
         <div style={{ maxHeight: 380, overflowY: "auto" }}>
