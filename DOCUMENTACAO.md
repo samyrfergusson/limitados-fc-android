@@ -1,8 +1,8 @@
 # 📘 Documentação — Limitados F.C
 
-App de gestão da pelada de quinta do **Limitados F.C**: elenco, estatísticas, sorteio de times, financeiro com PIX (baixa automática) e presença. Web + Android, com dados na nuvem e sincronização em tempo real.
+App de gestão da pelada de quinta do **Limitados F.C**: elenco, estatísticas, sorteio de times, financeiro com PIX (baixa automática) e presença. **Plataforma 100% web** (PWA), com dados na nuvem e sincronização em tempo real.
 
-> Última atualização desta doc: 2026-07-31
+> Última atualização desta doc: 2026-10-01
 
 ---
 
@@ -11,7 +11,6 @@ App de gestão da pelada de quinta do **Limitados F.C**: elenco, estatísticas, 
 | O quê | Onde |
 |---|---|
 | **Site (app web)** | https://samyrfergusson.github.io/limitados-fc-android/ |
-| **APK (Android)** | https://github.com/samyrfergusson/limitados-fc-android/releases/download/latest/app-debug.apk |
 | **Repositório (GitHub)** | https://github.com/samyrfergusson/limitados-fc-android (público) |
 | **Backend (Supabase)** | Projeto `ebbffyqwqzhbrgmqgtqv` — https://ebbffyqwqzhbrgmqgtqv.supabase.co |
 | **Dev local** | `npm run dev` → http://127.0.0.1:5173/ |
@@ -21,41 +20,39 @@ App de gestão da pelada de quinta do **Limitados F.C**: elenco, estatísticas, 
 ## 2. Visão geral da arquitetura
 
 ```
-┌──────────────┐        ┌──────────────┐        ┌───────────────────────────┐
-│  APK Android │        │  Site (web)  │        │   Dev local (127.0.0.1)   │
-│ (casca que   │        │ GitHub Pages │        │       npm run dev         │
-│  abre o site)│        └──────┬───────┘        └────────────┬──────────────┘
-└──────┬───────┘               │                             │
-       └───────────────────────┴──────────────┬──────────────┘
-                                               │  HTTPS
-                                               ▼
-                             ┌─────────────────────────────────────┐
-                             │            SUPABASE (nuvem)          │
-                             │  • Postgres (dados do grupo em JSON) │
-                             │  • Auth (login por link mágico)      │
-                             │  • Realtime (sincroniza em tempo real)│
-                             │  • Edge Functions (PIX Mercado Pago) │
-                             └──────────────┬──────────────────────┘
-                                            │ webhook
-                                            ▼
-                                   ┌──────────────────┐
-                                   │  Mercado Pago    │  (cobrança PIX + baixa automática)
-                                   └──────────────────┘
+        ┌──────────────┐              ┌───────────────────────────┐
+        │  Site (web)  │              │   Dev local (127.0.0.1)   │
+        │ GitHub Pages │              │       npm run dev         │
+        └──────┬───────┘              └────────────┬──────────────┘
+               └───────────────┬───────────────────┘
+                               │  HTTPS
+                               ▼
+             ┌─────────────────────────────────────┐
+             │            SUPABASE (nuvem)          │
+             │  • Postgres (dados do grupo em JSON) │
+             │  • Auth (login por link mágico)      │
+             │  • Realtime (sincroniza em tempo real)│
+             │  • Edge Functions (PIX Mercado Pago) │
+             └──────────────┬──────────────────────┘
+                            │ webhook
+                            ▼
+                   ┌──────────────────┐
+                   │  Mercado Pago    │  (cobrança PIX + baixa automática)
+                   └──────────────────┘
 ```
 
-**Ideia central:** todos os três "apps" (APK, site, dev) são a **mesma interface** e falam com o **mesmo Supabase**. O APK é apenas uma casca (Capacitor) que carrega o site hospedado — por isso **atualiza sozinho** a cada deploy, sem reinstalar.
+**Ideia central:** o app é um **site (PWA)** hospedado no GitHub Pages que fala com o **Supabase**. Atualiza sozinho a cada deploy. (Não há mais APK/Android — a plataforma é só web.)
 
 ---
 
 ## 3. Stack tecnológico
 
 - **Front-end:** React 18 + Vite + Tailwind CSS + ícones `lucide-react`
-- **Mobile:** Capacitor 6 (Android) — APK aponta para o site via `server.url`
-- **PWA:** `vite-plugin-pwa` (service worker, instalável, atualização automática)
+- **PWA:** `vite-plugin-pwa` (service worker, instalável pelo navegador, atualização automática)
 - **Backend:** Supabase — Postgres, Auth (GoTrue), Realtime, Edge Functions (Deno)
 - **Pagamentos:** Mercado Pago (API de pagamentos PIX + webhook)
 - **E-mail (login):** SMTP do Gmail (senha de app) configurado no Supabase
-- **CI/CD:** GitHub Actions (build de APK, deploy do site, deploy das functions)
+- **CI/CD:** GitHub Actions (deploy do site + deploy das Edge Functions)
 
 ---
 
@@ -76,12 +73,9 @@ limitados-fc-android/
 │   └── functions/
 │       ├── criar-cobranca/index.ts   # gera cobrança PIX no Mercado Pago
 │       └── mp-webhook/index.ts       # recebe pagamento → baixa automática
-├── android/              # projeto Capacitor/Android (gera o APK)
 ├── .github/workflows/
-│   ├── build-apk.yml         # monta o APK e publica no Release
 │   ├── deploy-web.yml        # publica o site no GitHub Pages
 │   └── deploy-functions.yml  # publica as Edge Functions no Supabase
-├── capacitor.config.json # server.url aponta para o site (auto-update)
 ├── vite.config.js        # base condicional (/limitados-fc-android/ só no Pages)
 ├── MERCADOPAGO.md        # guia da integração Mercado Pago
 └── DOCUMENTACAO.md       # este arquivo
@@ -233,11 +227,10 @@ Detalhes completos em [MERCADOPAGO.md](MERCADOPAGO.md).
 
 | Workflow | Dispara | O que faz |
 |---|---|---|
-| `build-apk.yml` | push / manual | monta o APK e publica no **Release "latest"** |
 | `deploy-web.yml` | push / manual | publica o site no **GitHub Pages** |
 | `deploy-functions.yml` | manual | publica as **Edge Functions** + seta o `MP_ACCESS_TOKEN` no Supabase |
 
-**Fluxo de atualização do app:** altera o código → `git push` → site atualiza → o APK (que aponta pro site) mostra a versão nova ao reabrir. **Sem reinstalar.**
+**Fluxo de atualização do app:** altera o código → `git push` → o site atualiza sozinho (os usuários veem a versão nova ao reabrir/recarregar).
 
 > A versão aparece no topo do app (constante `APP_VERSION` em `src/App.jsx`). Suba esse número a cada atualização relevante.
 
@@ -270,13 +263,11 @@ npm run dev        # http://127.0.0.1:5173/
 ```
 > Neste ambiente o Node não está no PATH: use o caminho completo do `npm.cmd` (ver seção 12).
 
-**Publicar uma mudança:** `git push origin main` (site e APK atualizam sozinhos).
+**Publicar uma mudança:** `git push origin main` (o site atualiza sozinho).
 
 **Dar/remover permissão de admin:** editar a tabela `admins` no Supabase (SQL na seção 5).
 
 **Definir o presidente:** `update public.admins set role = 'presidente' where email = '<email>';` (o e-mail precisa já estar em `admins`). Só ele promove a Estrela da Patota e cargos elevados.
-
-**Baixar o APK mais recente:** botão no site ou o link de Release (seção 1).
 
 **Liberar o X1 de novo p/ um jogador** (SQL Editor): remover a flag `x1Set` daquele jogador no JSON.
 
@@ -285,7 +276,6 @@ npm run dev        # http://127.0.0.1:5173/
 ## 12. Peculiaridades do ambiente (máquina de dev)
 
 - **Node/npm fora do PATH:** usar `& "C:\Program Files\nodejs\npm.cmd" <cmd>`.
-- **Build Android local NÃO funciona:** agentes de segurança (Netskope/CrowdStrike) bloqueiam o loopback NIO do Java que o Gradle precisa. Por isso o APK é montado **na nuvem** (GitHub Actions).
 - **TLS corporativo (Netskope):** o `git` usa `http.sslBackend schannel` (cofre de certificados do Windows) para o push funcionar.
 
 ---
