@@ -836,7 +836,7 @@ function PlayerForm({ player, onClose, onSave, embed, heading, submitLabel }) {
   const [f, setF] = useState(player || {
     id: uid(), nome: "", apelido: "", numero: "", posicao: "MEI", overall: 75, cargo: "mensalista",
     mensalista: true, status: "ativo", dataEntrada: new Date().toISOString().slice(0, 10), dataSaida: null,
-    aniversario: "", atr: { vel: 70, fin: 70, pas: 70, def: 70, fis: 70, dri: 70 },
+    aniversario: "", email: "", atr: { vel: 70, fin: 70, pas: 70, def: 70, fis: 70, dri: 70 },
   });
   const set = (k, v) => setF((x) => ({ ...x, [k]: v }));
   // Guarda o texto cru enquanto edita (deixa apagar tudo/ficar vazio);
@@ -846,6 +846,7 @@ function PlayerForm({ player, onClose, onSave, embed, heading, submitLabel }) {
   const submit = () => onSave({
     ...f,
     overall: Number(f.overall) || 0,
+    email: (f.email || "").trim().toLowerCase(), // normaliza (o match com o login é case-insensitive)
     atr: Object.fromEntries(Object.entries(f.atr).map(([k, v]) => [k, Number(v) || 0])),
   });
   const body = (
@@ -877,6 +878,11 @@ function PlayerForm({ player, onClose, onSave, embed, heading, submitLabel }) {
           </select>
         </Field>
       </div>
+      {!embed && (
+        <Field label="E-mail do jogador (login no app) — opcional">
+          <input type="email" placeholder="jogador@email.com" style={inputStyle} value={f.email || ""} onChange={(e) => set("email", e.target.value)} />
+        </Field>
+      )}
       <div style={{ ...mono, fontSize: 11, color: T.muted, textTransform: "uppercase", margin: "6px 0 8px" }}>Características</div>
       <div className="grid" style={{ gridTemplateColumns: "repeat(6,1fr)", gap: 8 }}>
         {[["vel", "VEL"], ["fin", "FIN"], ["pas", "PAS"], ["def", "DEF"], ["fis", "FIS"], ["dri", "X1"]].map(([k, lb]) => (
