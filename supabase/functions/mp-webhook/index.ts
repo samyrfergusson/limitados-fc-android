@@ -48,9 +48,12 @@ Deno.serve(async (req) => {
     payments[playerId] = { ...(payments[playerId] ?? {}), [competencia]: "pago" };
     const multas = (dados.multas ?? []).map((m: any) =>
       (m.playerId === playerId && !m.pago && !m.cancelado) ? { ...m, pago: true } : m);
+    // Identifica quem pagou (nome) para registrar no caixa.
+    const jogador = (dados.players ?? []).find((p: any) => p.id === playerId);
+    const nome = jogador ? (jogador.apelido || jogador.nome || "") : "";
     const lancamentos = [
       { id: crypto.randomUUID(), data: new Date().toISOString().slice(0, 10),
-        desc: `PIX recebido (${competencia})`, tipo: "receita", valor: Number(pay.transaction_amount) },
+        desc: `PIX recebido${nome ? " · " + nome : ""} (${competencia})`, tipo: "receita", valor: Number(pay.transaction_amount) },
       ...(dados.lancamentos ?? []),
     ];
     const caixa = Number(dados.club?.caixa ?? 0) + Number(pay.transaction_amount);
