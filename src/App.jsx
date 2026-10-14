@@ -32,6 +32,16 @@ const MeCtx = React.createContext(""); // e-mail do usuário logado
 const useMe = () => React.useContext(MeCtx);
 const PresidentCtx = React.createContext(false); // é o presidente?
 const useIsPresident = () => React.useContext(PresidentCtx);
+// true quando a tela é de celular (< 768px) — reage a redimensionamento/rotação.
+function useIsMobile() {
+  const [m, setM] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
+  useEffect(() => {
+    const onR = () => setM(window.innerWidth < 768);
+    window.addEventListener("resize", onR);
+    return () => window.removeEventListener("resize", onR);
+  }, []);
+  return m;
+}
 
 /* ============================ HELPERS ============================ */
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -1148,6 +1158,8 @@ function Financeiro({ data, update }) {
   }, []);
   const mensalistas = data.players.filter((p) => p.mensalista && p.status === "ativo");
   const cur = monthKey();
+  const isMobile = useIsMobile();
+  const monthsShown = isMobile ? [cur] : months; // celular: só o mês atual; desktop: os 3
   const cycle = (id, mk) => update((d) => {
     const order = { undefined: "pago", pago: "pendente", pendente: "atrasado", atrasado: "pago" };
     const prev = (d.payments[id] || {})[mk];
@@ -1209,14 +1221,14 @@ function Financeiro({ data, update }) {
         <SectionTitle Icon={Wallet} color={T.turf}>Controle de mensalidades</SectionTitle>
         <div style={{ ...mono, fontSize: 10, color: T.muted, marginBottom: 10 }}>toque no status pra alternar · pago → pendente → atrasado</div>
         <div style={{ overflowX: "auto" }}>
-          <div style={{ display: "grid", gridTemplateColumns: `1fr repeat(${months.length},90px) 96px`, gap: 8, minWidth: 480 }}>
+          <div style={{ display: "grid", gridTemplateColumns: `1fr repeat(${monthsShown.length},90px) 96px`, gap: 8, minWidth: isMobile ? 0 : 480 }}>
             <div />
-            {months.map((m) => <div key={m} style={{ ...mono, fontSize: 11, color: T.muted, textAlign: "center", textTransform: "uppercase" }}>{monthLabel(m)}</div>)}
+            {monthsShown.map((m) => <div key={m} style={{ ...mono, fontSize: 11, color: T.muted, textAlign: "center", textTransform: "uppercase" }}>{monthLabel(m)}</div>)}
             <div />
             {mensalistas.map((p) => (
               <React.Fragment key={p.id}>
                 <div className="flex items-center gap-2" style={{ fontSize: 13 }}><Jersey p={p} size={28} /> {p.apelido}</div>
-                {months.map((m) => {
+                {monthsShown.map((m) => {
                   const s = (data.payments[p.id] || {})[m];
                   return (
                     <button key={m} onClick={() => cycle(p.id, m)} style={{
